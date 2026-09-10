@@ -1,10 +1,12 @@
-import { BuilderRail } from "@/components/builder/builder-rail";
+import { BuilderShell } from "@/components/builder/builder-shell";
 
-export default function FormLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-[calc(100vh-4rem)]">
-      <BuilderRail />
-      <div className="flex-1">{children}</div>
-    </div>
-  );
+export default async function FormLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ formId: string }>;
+}) {
+  const { formId } = await params;
+  return <BuilderShell formId={formId}>{children}</BuilderShell>;
 }
