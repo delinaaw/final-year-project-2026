@@ -48,10 +48,43 @@ def score_option(spoken: str, label: str) -> float:
     return similarity(spoken, label)
 
 
+ORDINALS = {
+    "one": 1, "first": 1,
+    "two": 2, "second": 2,
+    "three": 3, "third": 3,
+    "four": 4, "fourth": 4,
+    "five": 5, "fifth": 5,
+    "six": 6, "sixth": 6,
+    "seven": 7, "seventh": 7,
+    "eight": 8, "eighth": 8,
+}
+
+
+def spoken_positions(spoken: str, count: int) -> list[int]:
+    found: list[int] = []
+
+    for digit in re.findall(r"\b([1-9])\b", spoken):
+        position = int(digit)
+        if 1 <= position <= count and position not in found:
+            found.append(position)
+
+    for word in spoken.split():
+        position = ORDINALS.get(word)
+        if position and 1 <= position <= count and position not in found:
+            found.append(position)
+
+    return found
+
+
 def match_choice(question: Question, transcript: str) -> list[UUID]:
     spoken = normalise(transcript)
     if not spoken:
         return []
+
+    positions = spoken_positions(spoken, len(question.options))
+    if positions:
+        chosen = [question.options[position - 1].id for position in positions]
+        return chosen if question.type == QuestionType.CHECKBOXES else chosen[:1]
 
     scored = [
         (score_option(spoken, normalise(option.label)), option) for option in question.options
@@ -71,6 +104,11 @@ def match_choice(question: Question, transcript: str) -> list[UUID]:
         return [labels["yes"]]
     if spoken.split()[0] in NEGATIVE and "no" in labels:
         return [labels["no"]]
+
+    positions = spoken_positions(spoken, len(question.options))
+    if positions:
+        chosen = [question.options[position - 1].id for position in positions]
+        return chosen if question.type == QuestionType.CHECKBOXES else chosen[:1]
 
     return []
 

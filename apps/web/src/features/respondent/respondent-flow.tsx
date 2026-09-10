@@ -10,6 +10,7 @@ import { DeadEnd } from "@/components/respondent/dead-end";
 import { ProgressHeader } from "@/components/respondent/progress-header";
 import { PlayQuestionButton } from "@/components/respondent/play-question-button";
 import { RespondentShell } from "@/components/respondent/respondent-shell";
+import { SpokenOptions } from "@/components/respondent/spoken-options";
 import { VoiceRecorder, type VoiceStage } from "@/components/respondent/voice-recorder";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { respondentApi } from "@/features/respondent/api";
@@ -41,8 +42,10 @@ function toPayload(question: PublicQuestion, value: AnswerValue) {
   return { text_value: value.text.trim() };
 }
 
-export function RespondentFlow() {
-  const slug = useParams<{ slug: string }>().slug;
+export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
+  const routeSlug = useParams<{ slug: string }>().slug;
+  const slug = previewSlug ?? routeSlug;
+  const isPreview = Boolean(previewSlug);
   const { data: form, isPending, error } = usePublicForm(slug);
 
   const [stage, setStage] = useState<Stage>("intro");
@@ -67,7 +70,7 @@ export function RespondentFlow() {
 
   if (isPending) {
     return (
-      <RespondentShell>
+      <RespondentShell chromeless={isPreview}>
         <span className="mt-24 size-8 animate-spin rounded-full border-2 border-line border-t-brand" />
       </RespondentShell>
     );
@@ -119,7 +122,13 @@ export function RespondentFlow() {
     );
   }
 
-  const begin = () =>
+  const begin = () => {
+    if (isPreview) {
+      startedAt.current = Date.now();
+      setStage("question");
+      return;
+    }
+
     start.mutate(undefined, {
       onSuccess: (session) => {
         setResponseId(session.id);
@@ -140,9 +149,12 @@ export function RespondentFlow() {
         else toast.error("Could not start this form");
       },
     });
+  };
 
-  const persist = (target: PublicQuestion, next: AnswerValue) =>
+  const persist = (target: PublicQuestion, next: AnswerValue) => {
+    if (isPreview) return;
     saveAnswer.mutate({ question_id: target.id, input_mode: "text", ...toPayload(target, next) });
+  };
 
   const beginRecording = async () => {
     setVoiceStage("permission");
@@ -158,6 +170,12 @@ export function RespondentFlow() {
     }
     if (!result) {
       setVoiceStage("not_recognised");
+      return;
+    }
+
+    if (isPreview) {
+      toast.info("Preview mode does not record answers");
+      setVoiceStage("idle");
       return;
     }
 
@@ -225,7 +243,12 @@ export function RespondentFlow() {
     if (!form.settings.allow_review_and_edit && index === questions.length - 1) finish();
   };
 
-  const finish = () =>
+  const finish = () => {
+    if (isPreview) {
+      setStage("submitted");
+      return;
+    }
+
     submit.mutate(Math.round((Date.now() - startedAt.current) / 1000), {
       onSuccess: () => setStage("submitted"),
       onError: (err) => {
@@ -235,10 +258,11 @@ export function RespondentFlow() {
         }
       },
     });
+  };
 
   if (stage === "intro") {
     return (
-      <RespondentShell>
+      <RespondentShell chromeless={isPreview}>
         <div className="flex w-full max-w-[820px] flex-col items-center gap-6 rounded-2xl border border-line bg-surface-card px-6 py-10 text-center sm:px-10 sm:py-14">
           <span className="flex size-16 items-center justify-center rounded-full bg-brand-muted">
             <Mic className="size-7 text-brand" />
@@ -256,7 +280,10 @@ export function RespondentFlow() {
             {[
               { icon: ClipboardList, label: `${questions.length} questions` },
               { icon: Clock, label: minutesLabel(questions.length) },
-              { icon: Save, label: "Answers saved as you go" },
+              {
+                icon: Save,
+                label: isPreview ? "Nothing is saved in preview" : "Answers saved as you go",
+              },
             ].map((chip) => (
               <span
                 key={chip.label}
@@ -272,7 +299,9 @@ export function RespondentFlow() {
             {start.isPending ? "Starting…" : "Start answering"}
           </Button>
           <p className="text-[12px] text-content-placeholder">
-            Your microphone is only used while you are answering a question.
+            {isPreview
+              ? "This is how respondents will see your form."
+              : "Your microphone is only used while you are answering a question."}
           </p>
         </div>
       </RespondentShell>
@@ -281,7 +310,7 @@ export function RespondentFlow() {
 
   if (stage === "submitted") {
     return (
-      <RespondentShell>
+      <RespondentShell chromeless={isPreview}>
         <div className="flex w-full max-w-[620px] flex-col items-center gap-5 rounded-2xl border border-line bg-surface-card px-6 py-14 text-center">
           <span className="flex size-16 items-center justify-center rounded-full bg-feedback-success-subtle">
             <CheckCircle2 className="size-8 text-feedback-success" />
@@ -299,7 +328,7 @@ export function RespondentFlow() {
 
   if (stage === "review") {
     return (
-      <RespondentShell>
+      <RespondentShell chromeless={isPreview}>
         <div className="flex w-full max-w-[820px] flex-col gap-6">
           <div className="flex flex-col gap-2 text-center">
             <h1 className="text-[24px] font-bold leading-8 text-content-primary sm:text-[28px]">
@@ -393,7 +422,7 @@ export function RespondentFlow() {
             .join(", ") || null;
 
   return (
-    <RespondentShell>
+    <RespondentShell chromeless={isPreview}>
       <div className="flex w-full max-w-[820px] flex-col gap-6">
         {form.settings.show_progress_bar ? (
           <ProgressHeader current={index + 1} total={questions.length} />
@@ -452,25 +481,32 @@ export function RespondentFlow() {
           ) : null}
 
           {supportsVoice && mode === "voice" ? (
-            <VoiceRecorder
-              stage={voiceStage}
-              recorderState={recorder.state}
-              elapsed={recorder.elapsed}
-              peaks={recorder.peaks}
-              transcript={transcripts[question.id] ?? null}
-              matchedLabel={matchedLabel}
-              onStart={beginRecording}
-              onStop={finishRecording}
-              onCancel={resetVoice}
-              onRetry={() => {
-                resetVoice();
-                void beginRecording();
-              }}
-              onSwitchToTyping={() => {
-                setMode("text");
-                resetVoice();
-              }}
-            />
+            <>
+              <SpokenOptions
+                question={question}
+                selectedIds={value.optionIds}
+                rating={value.rating}
+              />
+              <VoiceRecorder
+                stage={voiceStage}
+                recorderState={recorder.state}
+                elapsed={recorder.elapsed}
+                peaks={recorder.peaks}
+                transcript={transcripts[question.id] ?? null}
+                matchedLabel={matchedLabel}
+                onStart={beginRecording}
+                onStop={finishRecording}
+                onCancel={resetVoice}
+                onRetry={() => {
+                  resetVoice();
+                  void beginRecording();
+                }}
+                  onSwitchToTyping={() => {
+                    setMode("text");
+                    resetVoice();
+                  }}
+                />
+            </>
           ) : (
             <AnswerInput
               question={question}
