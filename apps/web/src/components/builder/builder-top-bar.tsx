@@ -2,20 +2,22 @@
 
 import { Eye, MessageSquare, Palette, Send } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
+import { PublishDialog } from "@/components/builder/publish-dialog";
 import { SaveIndicator } from "@/components/builder/save-indicator";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
-import { usePublishForm } from "@/features/builder/use-builder";
 
 interface BuilderTopBarProps {
   formId: string;
   title: string;
   canPublish: boolean;
+  isLive: boolean;
 }
 
-export function BuilderTopBar({ formId, title, canPublish }: BuilderTopBarProps) {
-  const publish = usePublishForm(formId);
+export function BuilderTopBar({ formId, title, canPublish, isLive }: BuilderTopBarProps) {
+  const [publishing, setPublishing] = useState(false);
 
   return (
     <header className="flex h-20 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface-card px-4 sm:px-7">
@@ -58,14 +60,16 @@ export function BuilderTopBar({ formId, title, canPublish }: BuilderTopBarProps)
         </Link>
 
         <Button
-          onClick={() => publish.mutate()}
-          disabled={publish.isPending || !canPublish}
+          onClick={() => setPublishing(true)}
+          disabled={!canPublish}
           className="h-[46px] gap-2 bg-marine hover:bg-marine/90 sm:w-[140px]"
         >
           <Send className="size-[17px]" />
-          {publish.isPending ? "Publishing…" : "Publish"}
+          {isLive ? "Published" : "Publish"}
         </Button>
       </div>
+
+      <PublishDialog formId={formId} open={publishing} onOpenChange={setPublishing} />
     </header>
   );
 }

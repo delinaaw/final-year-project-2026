@@ -19,6 +19,7 @@ export function BuilderShell({
         formId={formId}
         title={form?.title ?? "Untitled form"}
         canPublish={(form?.questions.length ?? 0) > 0}
+        isLive={form?.status === "live"}
       />
       <div className="flex flex-1 flex-col lg:flex-row">
         <BuilderRail formId={formId} />

@@ -1,5 +1,6 @@
 import { api } from "@/lib/api-client";
 import type { FormStatus } from "@/features/forms/api";
+import type { FormSettings } from "@/features/builder/settings-api";
 
 export type QuestionType =
   | "short_answer"
@@ -28,12 +29,7 @@ export interface Question {
   options: QuestionOption[];
 }
 
-export interface FormSettings {
-  read_questions_aloud: boolean;
-  voice_id: string;
-  show_progress_bar: boolean;
-  all_questions_required: boolean;
-}
+export type { FormSettings } from "@/features/builder/settings-api";
 
 export interface FormDetail {
   id: string;

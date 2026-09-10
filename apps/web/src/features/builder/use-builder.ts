@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -121,17 +120,3 @@ export function useReorderQuestions(formId: string) {
   });
 }
 
-export function usePublishForm(formId: string) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => builderApi.publish(formId),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.forms.detail(formId) });
-      toast.success("Form published");
-      router.push(`/forms/${formId}/share?url=${encodeURIComponent(result.respondent_url)}`);
-    },
-    onError: reportError,
-  });
-}
