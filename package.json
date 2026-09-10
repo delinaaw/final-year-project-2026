@@ -22,6 +22,7 @@
     "api:lint": "uv run --directory apps/api ruff check .",
     "api:format": "uv run --directory apps/api ruff format .",
     "api:test": "uv run --directory apps/api pytest",
+    "api:typecheck": "uv run --directory apps/api mypy src",
     "client:generate": "pnpm --filter @voiceform/api-client generate",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
