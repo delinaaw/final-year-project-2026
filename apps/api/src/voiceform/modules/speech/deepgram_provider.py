@@ -1,10 +1,8 @@
-from collections.abc import AsyncIterator
-
 import httpx
 
 from voiceform.core.config import settings
 from voiceform.core.exceptions import AppError
-from voiceform.modules.speech.provider import PartialTranscript, Transcript
+from voiceform.modules.speech.provider import Transcript
 
 BASE_URL = "https://api.deepgram.com/v1/listen"
 MODEL = "nova-3"
@@ -35,8 +33,3 @@ class DeepgramSttProvider:
             confidence=float(best.get("confidence", 0.0)),
             duration_seconds=payload.get("metadata", {}).get("duration"),
         )
-
-    async def stream(
-        self, chunks: AsyncIterator[bytes], mime_type: str
-    ) -> AsyncIterator[PartialTranscript]:
-        raise NotImplementedError

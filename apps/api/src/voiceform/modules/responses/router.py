@@ -1,10 +1,24 @@
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import suppress
 from uuid import UUID
 
-from fastapi import APIRouter, File, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    File,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 
 from voiceform.api.dependencies import OwnedForm, SessionDep
 from voiceform.core.config import settings
 from voiceform.core.exceptions import NotFoundError, ValidationError
+from voiceform.core.logging import logger
 from voiceform.db.enums import InputMode, QuestionType, TranscriptStatus
 from voiceform.db.models import AudioRecording
 from voiceform.modules.forms import service as forms_service
@@ -23,6 +37,11 @@ from voiceform.modules.responses.schemas import (
 )
 from voiceform.modules.speech import service as speech
 from voiceform.modules.speech.matching import match_answer
+from voiceform.modules.speech.streaming import (
+    deepgram_socket,
+    relay_from_deepgram,
+    relay_to_deepgram,
+)
 from voiceform.modules.storage.service import answer_audio_key, get_storage
 
 public_router = APIRouter(prefix="/public/forms/{slug}", tags=["respondent"])
@@ -177,6 +196,43 @@ async def submit_voice_answer(
         rating=rating,
         needs_confirmation=recognised and expects_structured and not option_ids and rating is None,
     )
+
+
+@public_router.websocket("/transcribe/stream")
+async def stream_transcription(websocket: WebSocket, slug: str) -> None:
+    await websocket.accept()
+
+    async def incoming() -> AsyncIterator[bytes | str]:
+        while True:
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                return
+            if (payload := message.get("bytes")) is not None:
+                yield payload
+            elif (text := message.get("text")) is not None:
+                yield text
+
+    async def send_event(event: dict[str, object]) -> None:
+        with suppress(Exception):
+            await websocket.send_json(event)
+
+    try:
+        async with deepgram_socket() as socket:
+            sender = asyncio.create_task(relay_to_deepgram(incoming(), socket))
+            reader = asyncio.create_task(relay_from_deepgram(socket, send_event))
+
+            _, pending = await asyncio.wait({sender, reader}, return_when=asyncio.ALL_COMPLETED)
+            for task in pending:
+                task.cancel()
+    except WebSocketDisconnect:
+        logger.info("streaming.client_disconnected", slug=slug)
+    except Exception as error:
+        logger.warning("streaming.failed", slug=slug, error=str(error))
+        with suppress(Exception):
+            await websocket.send_json({"type": "error", "message": "Live transcription failed"})
+    finally:
+        with suppress(Exception):
+            await websocket.close()
 
 
 @router.get("", response_model=list[ResponseDetail])

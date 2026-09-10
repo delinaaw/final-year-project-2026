@@ -23,6 +23,7 @@ interface VoiceRecorderProps {
   peaks: number[];
   transcript: string | null;
   matchedLabel?: string | null;
+  liveText?: string;
   onStart: () => void;
   onStop: () => void;
   onCancel: () => void;
@@ -36,6 +37,7 @@ export function VoiceRecorder({
   peaks,
   transcript,
   matchedLabel,
+  liveText,
   onStart,
   onStop,
   onCancel,
@@ -95,9 +97,18 @@ export function VoiceRecorder({
             Recording · {formatDuration(elapsed)}
           </span>
           <Waveform peaks={peaks} active />
-          <p className="text-center text-body-s text-content-secondary">
-            Speak naturally. Press stop when you are done.
-          </p>
+          {liveText ? (
+            <p
+              aria-live="polite"
+              className="max-h-24 overflow-y-auto text-center text-body-m leading-6 text-content-primary"
+            >
+              {liveText}
+            </p>
+          ) : (
+            <p className="text-center text-body-s text-content-secondary">
+              Speak naturally. Press stop when you are done.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button variant="danger" onClick={onStop}>

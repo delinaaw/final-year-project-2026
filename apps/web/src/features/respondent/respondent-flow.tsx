@@ -21,6 +21,7 @@ import {
 } from "@/lib/offline-store";
 import { VoiceRecorder, type VoiceStage } from "@/components/respondent/voice-recorder";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import { useLiveTranscription } from "@/hooks/use-live-transcription";
 import { respondentApi } from "@/features/respondent/api";
 import { Button } from "@/components/ui/button";
 import type { PublicQuestion } from "@/features/respondent/api";
@@ -71,7 +72,9 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
 
   const online = useOnline();
   const flushPendingRef = useRef<(() => Promise<void>) | null>(null);
-  const recorder = useAudioRecorder();
+  const liveEnabled = Boolean(form?.settings.show_live_transcription) && !isPreview;
+  const transcription = useLiveTranscription(slug, liveEnabled);
+  const recorder = useAudioRecorder(transcription.push);
   useEffect(() => {
     void countPendingAnswers(slug).then(setPendingCount).catch(() => undefined);
   }, [slug]);
@@ -235,12 +238,17 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
 
   const beginRecording = async () => {
     setVoiceStage("permission");
+    transcription.reset();
+    transcription.open();
     const started = await recorder.start();
+    if (!started) transcription.close();
     setVoiceStage(started ? "recording" : "blocked");
   };
 
   const finishRecording = async () => {
+    transcription.finalise();
     const result = await recorder.stop();
+    transcription.close();
     if (!question || !responseId) {
       setVoiceStage("idle");
       return;
@@ -297,6 +305,8 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
 
   const resetVoice = () => {
     recorder.cancel();
+    transcription.close();
+    transcription.reset();
     setVoiceStage("idle");
   };
 
@@ -575,6 +585,7 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
                 elapsed={recorder.elapsed}
                 peaks={recorder.peaks}
                 transcript={transcripts[question.id] ?? null}
+                liveText={transcription.live}
                 matchedLabel={matchedLabel}
                 onStart={beginRecording}
                 onStop={finishRecording}

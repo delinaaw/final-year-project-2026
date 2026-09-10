@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -13,12 +12,6 @@ class Transcript:
 
 
 @dataclass(slots=True)
-class PartialTranscript:
-    text: str
-    is_final: bool
-
-
-@dataclass(slots=True)
 class Voice:
     id: str
     name: str
@@ -27,9 +20,6 @@ class Voice:
 
 class SpeechToTextProvider(Protocol):
     async def transcribe(self, audio: bytes, mime_type: str) -> Transcript: ...
-    def stream(
-        self, chunks: AsyncIterator[bytes], mime_type: str
-    ) -> AsyncIterator[PartialTranscript]: ...
 
 
 class TextToSpeechProvider(Protocol):

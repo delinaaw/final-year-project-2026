@@ -12,7 +12,7 @@ export interface Recording {
 
 const PEAK_COUNT = 48;
 
-export function useAudioRecorder() {
+export function useAudioRecorder(onChunk?: (chunk: Blob) => void) {
   const [state, setState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -25,6 +25,8 @@ export function useAudioRecorder() {
   const elapsedRef = useRef(0);
   const frameRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onChunkRef = useRef(onChunk);
+  onChunkRef.current = onChunk;
 
   const releaseDevices = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -76,7 +78,9 @@ export function useAudioRecorder() {
 
     const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
+      if (event.data.size === 0) return;
+      chunksRef.current.push(event.data);
+      onChunkRef.current?.(event.data);
     };
     recorderRef.current = recorder;
     recorder.start(250);
