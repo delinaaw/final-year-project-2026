@@ -5,11 +5,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from voiceform.core.config import settings
-
-settings.auth_provider = "local"
 from voiceform.core.database import get_session
 from voiceform.db.base import Base
 from voiceform.main import app
+
+settings.auth_provider = "local"
 
 TEST_DATABASE_URL = str(settings.database_url).rsplit("/", 1)[0] + "/voiceform_test"
 
