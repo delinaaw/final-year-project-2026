@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     clerk_publishable_key: str = ""
     clerk_secret_key: SecretStr = SecretStr("")
     clerk_jwks_url: str = ""
+    clerk_audience: str = ""
 
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
@@ -87,10 +88,14 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env == "production"
 
+    @property
+    def is_testing(self) -> bool:
+        return self.app_env == "test"
+
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
 
 
 settings = get_settings()

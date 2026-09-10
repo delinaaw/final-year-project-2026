@@ -1,4 +1,4 @@
-import aioboto3
+import aioboto3  # type: ignore[import-untyped]
 
 from voiceform.core.config import settings
 
@@ -24,7 +24,8 @@ class S3StorageProvider:
     async def get(self, key: str) -> bytes:
         async with self._session.client("s3", **self._kwargs) as client:
             obj = await client.get_object(Bucket=self._bucket, Key=key)
-            return await obj["Body"].read()
+            body: bytes = await obj["Body"].read()
+            return body
 
     async def delete(self, key: str) -> None:
         async with self._session.client("s3", **self._kwargs) as client:
@@ -32,16 +33,18 @@ class S3StorageProvider:
 
     async def presign_get(self, key: str, expires_in: int = 3600) -> str:
         async with self._session.client("s3", **self._kwargs) as client:
-            return await client.generate_presigned_url(
+            url: str = await client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self._bucket, "Key": key},
                 ExpiresIn=expires_in,
             )
+            return url
 
     async def presign_put(self, key: str, content_type: str, expires_in: int = 3600) -> str:
         async with self._session.client("s3", **self._kwargs) as client:
-            return await client.generate_presigned_url(
+            url: str = await client.generate_presigned_url(
                 "put_object",
                 Params={"Bucket": self._bucket, "Key": key, "ContentType": content_type},
                 ExpiresIn=expires_in,
             )
+            return url

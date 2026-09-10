@@ -77,9 +77,9 @@ def spoken_positions(spoken: str, count: int) -> list[int]:
             found.append(position)
 
     for word in spoken.split():
-        position = ORDINALS.get(word)
-        if position and 1 <= position <= count and position not in found:
-            found.append(position)
+        ordinal = ORDINALS.get(word)
+        if ordinal and 1 <= ordinal <= count and ordinal not in found:
+            found.append(ordinal)
 
     return found
 
@@ -89,23 +89,18 @@ def match_choice(question: Question, transcript: str) -> list[UUID]:
     if not spoken:
         return []
 
-    positions = spoken_positions(spoken, len(question.options))
-    if positions:
-        chosen = [question.options[position - 1].id for position in positions]
-        return chosen if question.type == QuestionType.CHECKBOXES else chosen[:1]
-
     scored = [
         (score_option(spoken, normalise(option.label)), option) for option in question.options
     ]
     scored.sort(key=lambda pair: pair[0], reverse=True)
 
     if question.type == QuestionType.CHECKBOXES:
-        chosen = [option.id for score, option in scored if score >= MATCH_THRESHOLD]
-        return chosen
-
-    best_score, best_option = scored[0] if scored else (0.0, None)
-    if best_option is not None and best_score >= MATCH_THRESHOLD:
-        return [best_option.id]
+        if matched := [option.id for score, option in scored if score >= MATCH_THRESHOLD]:
+            return matched
+    else:
+        best_score, best_option = scored[0] if scored else (0.0, None)
+        if best_option is not None and best_score >= MATCH_THRESHOLD:
+            return [best_option.id]
 
     labels = {normalise(option.label): option.id for option in question.options}
     if spoken.split()[0] in AFFIRMATIVE and "yes" in labels:

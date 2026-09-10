@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile, status
 from voiceform.api.dependencies import CurrentUser, OwnedForm, SessionDep
 from voiceform.core.config import settings
 from voiceform.core.exceptions import NotFoundError, ValidationError
+from voiceform.core.uploads import read_capped
 from voiceform.db.enums import FormStatus
 from voiceform.modules.email.service import send_template
 from voiceform.modules.forms import service
@@ -161,9 +162,9 @@ async def upload_header_image(
     if image.content_type not in allowed:
         raise ValidationError(message="Header images must be PNG, JPG or WebP")
 
-    payload = await image.read()
-    if len(payload) > settings.max_upload_bytes:
-        raise ValidationError(message="That image is larger than 10 MB")
+    payload = await read_capped(image, settings.max_upload_bytes, "That image is larger than 10 MB")
+    if not payload:
+        raise ValidationError(message="That image was empty")
 
     loaded = await service.load_form(session, form.id)
     if loaded is None:

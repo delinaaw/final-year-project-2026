@@ -55,12 +55,18 @@ async def count_submitted(session: AsyncSession, form_id: UUID) -> int:
     return int(result.scalar_one())
 
 
-async def assert_accepting(session: AsyncSession, form: Form) -> None:
+async def assert_accepting(session: AsyncSession, form: Form, lock: bool = False) -> None:
     if form.status == FormStatus.CLOSED:
         raise FormClosedError()
 
     limit = form.settings.response_limit
-    if limit is not None and await count_submitted(session, form.id) >= limit:
+    if limit is None:
+        return
+
+    if lock:
+        await session.execute(select(Form.id).where(Form.id == form.id).with_for_update())
+
+    if await count_submitted(session, form.id) >= limit:
         raise LimitReachedError()
 
 
@@ -179,7 +185,7 @@ async def submit_response(
     response: FormResponse,
     duration_seconds: int | None,
 ) -> FormResponse:
-    await assert_accepting(session, form)
+    await assert_accepting(session, form, lock=True)
 
     outstanding = missing_required(form, response)
     if outstanding:

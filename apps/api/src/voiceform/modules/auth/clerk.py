@@ -29,13 +29,15 @@ def jwk_client() -> PyJWKClient:
 def verify_session_token(token: str) -> dict[str, Any]:
     try:
         signing_key = jwk_client().get_signing_key_from_jwt(token)
-        return jwt.decode(
+        claims: dict[str, Any] = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
             issuer=settings.clerk_issuer or None,
-            options={"verify_aud": False},
+            audience=settings.clerk_audience or None,
+            options={"verify_aud": bool(settings.clerk_audience)},
         )
+        return claims
     except jwt.PyJWTError as error:
         raise UnauthorizedError(message="Session expired") from error
 
@@ -53,7 +55,8 @@ async def fetch_profile(clerk_user_id: str) -> dict[str, Any]:
 
     if response.status_code >= 400:
         return {}
-    return response.json()
+    profile: dict[str, Any] = response.json()
+    return profile
 
 
 def profile_email(profile: dict[str, Any], claims: dict[str, Any]) -> str | None:
@@ -63,10 +66,14 @@ def profile_email(profile: dict[str, Any], claims: dict[str, Any]) -> str | None
     primary = profile.get("primary_email_address_id")
     for address in profile.get("email_addresses", []):
         if address.get("id") == primary:
-            return address.get("email_address")
+            matched = address.get("email_address")
+            return str(matched) if matched else None
 
     addresses = profile.get("email_addresses", [])
-    return addresses[0].get("email_address") if addresses else None
+    if not addresses:
+        return None
+    first = addresses[0].get("email_address")
+    return str(first) if first else None
 
 
 def profile_name(profile: dict[str, Any], claims: dict[str, Any]) -> str:

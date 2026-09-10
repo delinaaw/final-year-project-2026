@@ -73,7 +73,7 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
   const online = useOnline();
   const flushPendingRef = useRef<(() => Promise<void>) | null>(null);
   const liveEnabled = Boolean(form?.settings.show_live_transcription) && !isPreview;
-  const transcription = useLiveTranscription(slug, liveEnabled);
+  const transcription = useLiveTranscription(slug, responseId, liveEnabled);
   const recorder = useAudioRecorder(transcription.push);
   useEffect(() => {
     void countPendingAnswers(slug).then(setPendingCount).catch(() => undefined);

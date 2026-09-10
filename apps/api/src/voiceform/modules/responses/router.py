@@ -18,7 +18,9 @@ from fastapi import (
 from voiceform.api.dependencies import OwnedForm, SessionDep
 from voiceform.core.config import settings
 from voiceform.core.exceptions import NotFoundError, ValidationError
+from voiceform.core.limiter import limiter
 from voiceform.core.logging import logger
+from voiceform.core.uploads import audio_mime_type, read_capped
 from voiceform.db.enums import InputMode, QuestionType, TranscriptStatus
 from voiceform.db.models import AudioRecording
 from voiceform.modules.forms import service as forms_service
@@ -103,7 +105,10 @@ async def submit_response(
 
 
 @public_router.get("/questions/{question_id}/audio", response_model=QuestionAudio)
-async def question_audio(slug: str, question_id: UUID, session: SessionDep) -> QuestionAudio:
+@limiter.limit("120/minute")
+async def question_audio(
+    request: Request, slug: str, question_id: UUID, session: SessionDep
+) -> QuestionAudio:
     form = await service.load_public_form(session, slug)
     question = next((q for q in form.questions if q.id == question_id), None)
     if question is None:
@@ -120,7 +125,9 @@ async def question_audio(slug: str, question_id: UUID, session: SessionDep) -> Q
     "/responses/{response_id}/answers/{question_id}/audio",
     response_model=VoiceAnswerResult,
 )
+@limiter.limit("60/minute")
 async def submit_voice_answer(
+    request: Request,
     slug: str,
     response_id: UUID,
     question_id: UUID,
@@ -130,13 +137,11 @@ async def submit_voice_answer(
     form = await service.load_public_form(session, slug)
     response = await service.load_response(session, form.id, response_id)
 
-    payload = await audio.read()
-    if len(payload) > settings.max_audio_bytes:
-        raise ValidationError(message="That recording is too long")
+    mime_type = audio_mime_type(audio)
+    payload = await read_capped(audio, settings.max_audio_bytes, "That recording is too long")
     if not payload:
         raise ValidationError(message="The recording was empty")
 
-    mime_type = audio.content_type or "audio/webm"
     transcript = await speech.transcribe_audio(payload, mime_type)
     recognised = speech.is_recognised(transcript)
 
@@ -199,7 +204,16 @@ async def submit_voice_answer(
 
 
 @public_router.websocket("/transcribe/stream")
-async def stream_transcription(websocket: WebSocket, slug: str) -> None:
+async def stream_transcription(
+    websocket: WebSocket, slug: str, session: SessionDep, response_id: UUID
+) -> None:
+    try:
+        form = await service.load_public_form(session, slug)
+        await service.load_response(session, form.id, response_id)
+    except (NotFoundError, ValidationError):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
 
     async def incoming() -> AsyncIterator[bytes | str]:

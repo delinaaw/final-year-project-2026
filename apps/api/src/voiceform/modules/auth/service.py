@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from voiceform.core.config import settings
@@ -15,12 +15,14 @@ from voiceform.core.security import (
     verify_password,
     verify_token_hash,
 )
-from voiceform.db.models import RefreshToken, User, VerificationCode
+from voiceform.db.models import LoginAttempt, RefreshToken, User, VerificationCode
 from voiceform.modules.auth.schemas import TokenPair
 
 VERIFY_PURPOSE = "verify_email"
 RESET_PURPOSE = "reset_password"
 MAX_CODE_ATTEMPTS = 5
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW = timedelta(minutes=15)
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
@@ -42,14 +44,61 @@ async def register(session: AsyncSession, full_name: str, email: str, password: 
     return user
 
 
-async def authenticate(session: AsyncSession, email: str, password: str) -> User:
+async def count_recent_failures(session: AsyncSession, email: str) -> int:
+    since = datetime.now(UTC) - LOGIN_WINDOW
+    result = await session.execute(
+        select(func.count())
+        .select_from(LoginAttempt)
+        .where(
+            LoginAttempt.email == email.lower(),
+            LoginAttempt.succeeded.is_(False),
+            LoginAttempt.created_at >= since,
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def record_login_attempt(
+    session: AsyncSession, email: str, ip_address: str | None, succeeded: bool
+) -> None:
+    session.add(LoginAttempt(email=email.lower(), ip_address=ip_address, succeeded=succeeded))
+    await session.commit()
+
+
+async def authenticate(
+    session: AsyncSession, email: str, password: str, ip_address: str | None = None
+) -> User:
+    if await count_recent_failures(session, email) >= MAX_LOGIN_ATTEMPTS:
+        raise UnauthorizedError(
+            message="Too many failed attempts. Try again in 15 minutes or reset your password"
+        )
+
     user = await get_user_by_email(session, email)
-    if user is None or user.password_hash is None:
-        raise UnauthorizedError(message="That email and password combination is incorrect")
-    if not verify_password(password, user.password_hash):
-        raise UnauthorizedError(message="That email and password combination is incorrect")
+    valid = (
+        user is not None
+        and user.password_hash is not None
+        and verify_password(password, user.password_hash)
+    )
+
+    if not valid:
+        await record_login_attempt(session, email, ip_address, False)
+        remaining = MAX_LOGIN_ATTEMPTS - await count_recent_failures(session, email)
+        if remaining <= 0:
+            raise UnauthorizedError(
+                message="Too many failed attempts. Try again in 15 minutes or reset your password"
+            )
+        plural = "attempt" if remaining == 1 else "attempts"
+        raise UnauthorizedError(
+            message=(
+                f"That email and password combination is incorrect. {remaining} {plural} remaining"
+            )
+        )
+
+    assert user is not None
     if not user.is_active:
         raise UnauthorizedError(message="This account has been disabled")
+
+    await record_login_attempt(session, email, ip_address, True)
     return user
 
 

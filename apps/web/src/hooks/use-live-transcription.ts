@@ -10,7 +10,11 @@ interface TranscriptEvent {
   message?: string;
 }
 
-export function useLiveTranscription(slug: string, enabled: boolean) {
+export function useLiveTranscription(
+  slug: string,
+  responseId: string | null,
+  enabled: boolean,
+) {
   const socketRef = useRef<WebSocket | null>(null);
   const finalsRef = useRef<string[]>([]);
   const [live, setLive] = useState("");
@@ -25,13 +29,14 @@ export function useLiveTranscription(slug: string, enabled: boolean) {
   }, []);
 
   const open = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || !responseId) return;
 
     finalsRef.current = [];
     setLive("");
 
     const socket = new WebSocket(
-      `${env.NEXT_PUBLIC_WS_URL}/v1/public/forms/${slug}/transcribe/stream`,
+      `${env.NEXT_PUBLIC_WS_URL}/v1/public/forms/${slug}/transcribe/stream` +
+        `?response_id=${encodeURIComponent(responseId)}`,
     );
     socket.binaryType = "arraybuffer";
 
@@ -55,7 +60,7 @@ export function useLiveTranscription(slug: string, enabled: boolean) {
     };
 
     socketRef.current = socket;
-  }, [enabled, slug]);
+  }, [enabled, responseId, slug]);
 
   const push = useCallback((chunk: Blob) => {
     const socket = socketRef.current;

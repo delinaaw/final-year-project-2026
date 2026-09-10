@@ -1,11 +1,12 @@
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, BackgroundTasks, status
+from fastapi import APIRouter, BackgroundTasks, Request, status
 
 from voiceform.api.dependencies import CurrentUser, SessionDep
 from voiceform.core.config import settings
 from voiceform.core.exceptions import UnauthorizedError
+from voiceform.core.limiter import limiter
 from voiceform.core.security import decode_token
 from voiceform.modules.auth import service
 from voiceform.modules.auth.clerk import verify_session_token
@@ -28,8 +29,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/hour")
 async def sign_up(
-    body: SignUpRequest, session: SessionDep, background: BackgroundTasks
+    request: Request, body: SignUpRequest, session: SessionDep, background: BackgroundTasks
 ) -> AuthResponse:
     user = await service.register(session, body.full_name, body.email, body.password)
     code = await service.create_verification_code(session, user)
@@ -48,15 +50,21 @@ async def sign_up(
 
 
 @router.post("/login", response_model=AuthResponse)
-async def log_in(body: LoginRequest, session: SessionDep) -> AuthResponse:
-    user = await service.authenticate(session, body.email, body.password)
+@limiter.limit("10/minute")
+async def log_in(request: Request, body: LoginRequest, session: SessionDep) -> AuthResponse:
+    user = await service.authenticate(
+        session, body.email, body.password, request.client.host if request.client else None
+    )
     tokens = await service.issue_tokens(session, user, body.remember_me)
     await session.commit()
     return AuthResponse(user=UserPublic.model_validate(user), tokens=tokens)
 
 
 @router.post("/social/clerk", response_model=AuthResponse)
-async def exchange_social_session(body: SocialExchangeRequest, session: SessionDep) -> AuthResponse:
+@limiter.limit("20/minute")
+async def exchange_social_session(
+    request: Request, body: SocialExchangeRequest, session: SessionDep
+) -> AuthResponse:
     claims = verify_session_token(body.token)
     user = await link_social_account(session, claims)
     tokens = await service.issue_tokens(session, user)
@@ -91,8 +99,9 @@ async def verify_email(
 
 
 @router.post("/verify-email/resend", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("3/hour")
 async def resend_verification(
-    user: CurrentUser, session: SessionDep, background: BackgroundTasks
+    request: Request, user: CurrentUser, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
     code = await service.create_verification_code(session, user)
     await session.commit()
@@ -108,8 +117,9 @@ async def resend_verification(
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("5/hour")
 async def forgot_password(
-    body: ForgotPasswordRequest, session: SessionDep, background: BackgroundTasks
+    request: Request, body: ForgotPasswordRequest, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
     user = await service.get_user_by_email(session, body.email)
     if user is not None:
@@ -129,8 +139,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
 async def reset_password(
-    body: ResetPasswordRequest, session: SessionDep, background: BackgroundTasks
+    request: Request, body: ResetPasswordRequest, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
     user = await service.reset_password(session, body.token, body.password)
     await session.commit()

@@ -18,7 +18,6 @@ import {
 import { Mic, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { DeleteQuestionDialog } from "@/components/builder/delete-question-dialog";
 import { DictateDialog } from "@/components/builder/dictate-dialog";

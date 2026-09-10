@@ -3,7 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, File, UploadFile, status
 
 from voiceform.api.dependencies import OwnedForm, SessionDep
+from voiceform.core.config import settings
 from voiceform.core.exceptions import ValidationError
+from voiceform.core.uploads import audio_mime_type, read_capped
 from voiceform.modules.questions import service
 from voiceform.modules.questions.drafting import draft_questions
 from voiceform.modules.questions.schemas import (
@@ -76,11 +78,12 @@ async def dictate_questions_from_audio(
     session: SessionDep,
     audio: UploadFile = File(...),
 ) -> list[QuestionPublic]:
-    payload = await audio.read()
+    mime_type = audio_mime_type(audio)
+    payload = await read_capped(audio, settings.max_audio_bytes, "That recording is too long")
     if not payload:
         raise ValidationError(message="The recording was empty")
 
-    transcript = await speech.transcribe_audio(payload, audio.content_type or "audio/webm")
+    transcript = await speech.transcribe_audio(payload, mime_type)
     if not speech.is_recognised(transcript):
         raise ValidationError(message="We could not make out that recording")
 

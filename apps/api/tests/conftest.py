@@ -6,10 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from voiceform.core.config import settings
 from voiceform.core.database import get_session
+from voiceform.core.limiter import limiter
 from voiceform.db.base import Base
 from voiceform.main import app
 
 TEST_DATABASE_URL = str(settings.database_url).rsplit("/", 1)[0] + "/voiceform_test"
+
+limiter.enabled = False
 
 
 @pytest.fixture(scope="session")
