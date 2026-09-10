@@ -49,14 +49,22 @@ def score_option(spoken: str, label: str) -> float:
 
 
 ORDINALS = {
-    "one": 1, "first": 1,
-    "two": 2, "second": 2,
-    "three": 3, "third": 3,
-    "four": 4, "fourth": 4,
-    "five": 5, "fifth": 5,
-    "six": 6, "sixth": 6,
-    "seven": 7, "seventh": 7,
-    "eight": 8, "eighth": 8,
+    "one": 1,
+    "first": 1,
+    "two": 2,
+    "second": 2,
+    "three": 3,
+    "third": 3,
+    "four": 4,
+    "fourth": 4,
+    "five": 5,
+    "fifth": 5,
+    "six": 6,
+    "sixth": 6,
+    "seven": 7,
+    "seventh": 7,
+    "eight": 8,
+    "eighth": 8,
 }
 
 

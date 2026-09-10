@@ -4,6 +4,7 @@ from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 
 from voiceform.core.config import settings
+from voiceform.core.logging import logger
 
 _pool: ArqRedis | None = None
 
@@ -16,5 +17,8 @@ async def get_queue() -> ArqRedis:
 
 
 async def enqueue(task: str, *args: Any, **kwargs: Any) -> None:
-    queue = await get_queue()
-    await queue.enqueue_job(task, *args, **kwargs)
+    try:
+        queue = await get_queue()
+        await queue.enqueue_job(task, *args, **kwargs)
+    except Exception as error:
+        logger.warning("queue.enqueue_failed", task=task, error=str(error))

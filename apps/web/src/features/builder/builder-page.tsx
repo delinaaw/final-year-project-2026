@@ -15,12 +15,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Mic, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { DeleteQuestionDialog } from "@/components/builder/delete-question-dialog";
+import { DictateDialog } from "@/components/builder/dictate-dialog";
 import { EmptyBuilder } from "@/components/builder/empty-builder";
 import { FormHeaderCard } from "@/components/builder/form-header-card";
 import { QuestionCard } from "@/components/builder/question-card";
@@ -43,6 +44,7 @@ export function BuilderPage() {
   const activeQuestionId = useBuilderStore((state) => state.activeQuestionId);
   const setActiveQuestion = useBuilderStore((state) => state.setActiveQuestion);
   const [deleting, setDeleting] = useState<Question | null>(null);
+  const [dictating, setDictating] = useState(false);
 
   const updateForm = useUpdateForm(formId);
   const addQuestion = useAddQuestion(formId);
@@ -97,7 +99,7 @@ export function BuilderPage() {
       {questions.length === 0 ? (
         <EmptyBuilder
           onAddQuestion={addBlank}
-          onDictate={() => toast.info("Dictation arrives with the voice phase")}
+          onDictate={() => setDictating(true)}
           isPending={addQuestion.isPending}
         />
       ) : (
@@ -140,8 +142,20 @@ export function BuilderPage() {
             <Plus className="size-[18px]" />
             Add question
           </Button>
+
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => setDictating(true)}
+            className="w-full sm:w-[220px]"
+          >
+            <Mic className="size-[18px]" />
+            Dictate questions
+          </Button>
         </>
       )}
+
+      <DictateDialog formId={formId} open={dictating} onOpenChange={setDictating} />
 
       <DeleteQuestionDialog
         question={deleting}

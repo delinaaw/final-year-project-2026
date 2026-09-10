@@ -23,6 +23,7 @@ from voiceform.modules.forms.schemas import (
     UpdateFormRequest,
 )
 from voiceform.modules.storage.service import get_storage, header_image_key
+from voiceform.workers.queue import enqueue
 
 router = APIRouter(prefix="/forms", tags=["forms"])
 
@@ -96,6 +97,10 @@ async def publish_form(
 
     await service.publish_form(session, loaded)
     await session.commit()
+
+    if loaded.settings.read_questions_aloud:
+        await enqueue("pregenerate_form_audio", loaded.id)
+
     return PublishedFormResponse(
         form=FormDetail.model_validate(loaded),
         respondent_url=f"{settings.app_url}/f/{loaded.slug}",
