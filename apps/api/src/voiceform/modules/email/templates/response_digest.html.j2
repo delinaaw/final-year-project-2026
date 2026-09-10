@@ -1,0 +1,6 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1 style="margin:0 0 12px;font-size:24px;color:#01033e;">{{ count }} new {{ "response" if count == 1 else "responses" }}</h1>
+<p style="margin:0 0 24px;color:#5d5d83;">{{ form_title }} collected {{ count }} new {{ "response" if count == 1 else "responses" }} since your last digest.</p>
+<a href="{{ responses_url }}" style="display:inline-block;background:#807dfe;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:600;">View responses</a>
+{% endblock %}

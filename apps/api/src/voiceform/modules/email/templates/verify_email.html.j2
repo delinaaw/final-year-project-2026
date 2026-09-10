@@ -1,0 +1,7 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1 style="margin:0 0 12px;font-size:24px;color:#01033e;">Verify your email</h1>
+<p style="margin:0 0 24px;color:#5d5d83;">Enter this code to finish setting up your account.</p>
+<p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:8px;color:#807dfe;">{{ code }}</p>
+<p style="margin:0;color:#5d5d83;">This code expires in {{ ttl_minutes }} minutes.</p>
+{% endblock %}

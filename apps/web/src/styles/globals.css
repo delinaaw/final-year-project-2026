@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: 241 98% 74%;
+    --brand-foreground: 0 0% 100%;
+    --brand-muted: 241 100% 96%;
+
+    --surface-page: 0 0% 99%;
+    --surface-card: 0 0% 100%;
+    --surface-subtle: 240 20% 98%;
+
+    --text-primary: 238 97% 12%;
+    --text-secondary: 240 17% 44%;
+    --text-placeholder: 240 15% 64%;
+    --text-inverse: 0 0% 100%;
+
+    --border-default: 0 0% 89%;
+    --border-strong: 0 3% 78%;
+
+    --state-success: 145 63% 42%;
+    --state-warning: 38 92% 50%;
+    --state-danger: 0 84% 60%;
+    --state-info: 214 89% 52%;
+
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  body {
+    @apply bg-surface-page text-content-primary antialiased;
+  }
+}
+
+@layer utilities {
+  .focus-ring {
+    @apply outline-none ring-offset-2 ring-offset-surface-page focus-visible:ring-2 focus-visible:ring-brand;
+  }
+}
