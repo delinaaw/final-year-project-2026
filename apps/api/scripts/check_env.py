@@ -142,16 +142,18 @@ async def check_elevenlabs() -> Result:
                 "https://api.elevenlabs.io/v1/voices",
                 headers={"xi-api-key": key},
             )
-        if res.status_code == 200:
-            count = len(res.json().get("voices", []))
-            return Result("ElevenLabs", True, f"{count} voices available", required=False)
-        if res.status_code == 401:
-            return Result(
-                "ElevenLabs", False, "key rejected, regenerate it at elevenlabs.io", required=False
-            )
-        return Result("ElevenLabs", False, f"HTTP {res.status_code}", required=False)
     except Exception as exc:
         return Result("ElevenLabs", False, str(exc)[:120], required=False)
+
+    if res.status_code == 200:
+        count = len(res.json().get("voices", []))
+        return Result("ElevenLabs", True, f"{count} voices available", required=False)
+
+    detail = res.json().get("detail", {}) if res.headers.get("content-type", "").startswith(
+        "application/json"
+    ) else {}
+    message = detail.get("message") or f"HTTP {res.status_code}"
+    return Result("ElevenLabs", False, message[:140], required=False)
 
 
 def check_secret_key() -> Result:

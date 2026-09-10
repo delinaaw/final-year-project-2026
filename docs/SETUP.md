@@ -191,11 +191,23 @@ Text to speech, for reading questions aloud.
 2. Free tier: 10,000 characters/month. Because we cache audio per question rather than per
    respondent, this stretches a long way.
 3. Avatar (bottom left) → **API Keys** → **Create API Key**
-4. Also open **Voices** and note 2–3 voice IDs for the Settings voice picker
+4. **Tick the permissions.** ElevenLabs keys are granular and grant almost nothing by default.
+   A key with no scopes returns `401` on every endpoint and looks identical to an invalid key.
+   You need:
+   - **Text to Speech** — synthesizing question audio
+   - **Voices → Read** — the voice picker in form Settings
+   - **Models → Read** — confirms `eleven_flash_v2_5` is available
+   - **User → Read** — optional, exposes your character quota
+5. Also open **Voices** and note 2–3 voice IDs for the Settings voice picker
 
 ```
 ELEVENLABS_API_KEY=<key>
 ```
+
+> **Free tier limitation.** Free accounts cannot use Voice Library voices through the API —
+> `POST /v1/text-to-speech/{voice_id}` returns *"Free users cannot use library voices via the
+> API"*. Only voices in your own workspace work. If every voice you want is library-only, the
+> Starter plan (~$5/mo) lifts it. This bites at build phase 7, not before.
 
 ---
 
