@@ -35,6 +35,7 @@ import {
   useUpdateForm,
   useUpdateQuestion,
 } from "@/features/builder/use-builder";
+import { FEATURES } from "@/features/builder/config";
 import { useBuilderStore } from "@/stores/builder-store";
 
 export function BuilderPage() {
@@ -143,19 +144,23 @@ export function BuilderPage() {
             Add question
           </Button>
 
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setDictating(true)}
-            className="w-full sm:w-[220px]"
-          >
-            <Mic className="size-[18px]" />
-            Dictate questions
-          </Button>
+          {FEATURES.dictation ? (
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => setDictating(true)}
+              className="w-full sm:w-[220px]"
+            >
+              <Mic className="size-[18px]" />
+              Dictate questions
+            </Button>
+          ) : null}
         </>
       )}
 
-      <DictateDialog formId={formId} open={dictating} onOpenChange={setDictating} />
+      {FEATURES.dictation ? (
+        <DictateDialog formId={formId} open={dictating} onOpenChange={setDictating} />
+      ) : null}
 
       <DeleteQuestionDialog
         question={deleting}

@@ -1,8 +1,10 @@
 "use client";
 
+import { useSignIn } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { AuthAlert } from "@/components/auth/auth-alert";
@@ -15,14 +17,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { authApi } from "@/features/auth/api";
+import { clerkMessage } from "@/features/auth/clerk-errors";
 import { loginSchema, type LoginValues } from "@/features/auth/schemas";
-import { useAuthError } from "@/features/auth/use-auth-error";
-import { useAuthSuccess } from "@/hooks/use-session";
 
 export function LoginForm() {
-  const onSuccess = useAuthSuccess();
-  const { message, capture, clear } = useAuthError();
+  const router = useRouter();
+  const { signIn, setActive, isLoaded } = useSignIn();
+  const socialSignIn = signIn ?? null;
+  const socialLoaded = isLoaded;
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   const {
     register,
@@ -34,15 +38,30 @@ export function LoginForm() {
     defaultValues: { email: "", password: "", remember_me: false },
   });
 
-  const mutation = useMutation({
-    mutationFn: authApi.logIn,
-    onSuccess: (response) => onSuccess(response, "/forms"),
-    onError: capture,
-  });
+  const submit = handleSubmit(async (values) => {
+    if (!isLoaded || !signIn) return;
 
-  const submit = handleSubmit((values) => {
-    clear();
-    mutation.mutate(values);
+    setMessage(null);
+    setPending(true);
+
+    try {
+      const attempt = await signIn.create({
+        identifier: values.email,
+        password: values.password,
+      });
+
+      if (attempt.status === "complete") {
+        await setActive({ session: attempt.createdSessionId });
+        router.push("/forms");
+        return;
+      }
+
+      setMessage("Additional verification is required to finish signing in.");
+    } catch (error) {
+      setMessage(clerkMessage(error, "That email and password combination is incorrect"));
+    } finally {
+      setPending(false);
+    }
   });
 
   return (
@@ -97,13 +116,14 @@ export function LoginForm() {
         </div>
       </div>
 
-      <Button type="submit" size="lg" disabled={mutation.isPending}>
-        {mutation.isPending ? "Logging in…" : "Log In"}
+      <Button type="submit" size="lg" disabled={pending || !isLoaded}>
+        {pending ? "Logging in…" : "Log In"}
       </Button>
 
       <AuthDivider />
-      <SocialButtons />
+      <SocialButtons signIn={socialSignIn} isLoaded={socialLoaded} />
       <AuthFooterLink prompt="Don't have an account?" href="/signup" label="Sign Up" />
+      <div id="clerk-captcha" />
     </form>
   );
 }

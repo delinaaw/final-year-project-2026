@@ -1,3 +1,4 @@
+import base64
 from functools import lru_cache
 from typing import Literal
 
@@ -26,6 +27,11 @@ class Settings(BaseSettings):
     refresh_token_ttl_days_remembered: int = 30
     verification_code_ttl_minutes: int = 15
     reset_token_ttl_minutes: int = 30
+
+    auth_provider: Literal["local", "clerk"] = "local"
+    clerk_publishable_key: str = ""
+    clerk_secret_key: SecretStr = SecretStr("")
+    clerk_jwks_url: str = ""
 
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
@@ -64,6 +70,19 @@ class Settings(BaseSettings):
     max_audio_bytes: int = 25 * 1024 * 1024
     max_upload_bytes: int = 10 * 1024 * 1024
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+
+    @property
+    def clerk_issuer(self) -> str:
+        if not self.clerk_publishable_key:
+            return ""
+        encoded = self.clerk_publishable_key.split("_", 2)[-1]
+        padded = encoded + "=" * (-len(encoded) % 4)
+        host = base64.b64decode(padded).decode().rstrip("$")
+        return f"https://{host}"
+
+    @property
+    def jwks_url(self) -> str:
+        return self.clerk_jwks_url or f"{self.clerk_issuer}/.well-known/jwks.json"
 
     @property
     def is_production(self) -> bool:

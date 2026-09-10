@@ -211,32 +211,31 @@ ELEVENLABS_API_KEY=<key>
 
 ---
 
-## 7. Google OAuth — 10 minutes
+## 7. Clerk — authentication
 
-For the "Continue with Google" button.
+VoiceForm uses Clerk for sign-in, behind the custom screens from the Figma. Clerk brokers
+Google and Apple, so Apple no longer needs a paid developer account.
 
-1. **console.cloud.google.com** → **Select a project** → **New Project** → `VoiceForm`
-2. **APIs & Services** → **OAuth consent screen**
-   - User type: **External** → Create
-   - App name `VoiceForm`, your email for both support and developer contact
-   - Scopes: leave defaults (`email`, `profile`, `openid`)
-   - Test users: add your own Gmail
-3. **Credentials** → **Create Credentials** → **OAuth client ID**
-   - Type: **Web application**
-   - Name: `voiceform-web`
-   - **Authorised JavaScript origins:** `http://localhost:3000`
-   - **Authorised redirect URIs:** `http://localhost:8000/v1/auth/google/callback`
-4. Copy both values from the dialog
+1. **dashboard.clerk.com** → create an application
+2. **API Keys** → copy both:
 
 ```
-GOOGLE_CLIENT_ID=<...>.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=<...>
+AUTH_PROVIDER=clerk
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-While the consent screen is unpublished only your listed test users can log in. That is fine
-until launch.
+3. **User & Authentication → Email, Phone, Username** — turn on **Email address** and set it as
+   an identifier, then turn on **Password**. Without these the email and password screens cannot
+   work: Clerk rejects the sign-up with *"email_address is not a valid parameter"*.
+4. **User & Authentication → Social Connections** — enable **Google** and **Apple**.
+5. **User & Authentication → Attack Protection** — bot protection is on by default and renders a
+   Cloudflare Turnstile widget. Leave it on for real use; it is the reason automated browsers
+   cannot complete sign-up.
 
----
+Set `AUTH_PROVIDER=local` to fall back to the built-in email and password implementation, which
+is what the test suite uses.
 
 ## 8. Anthropic — optional, 2 minutes
 

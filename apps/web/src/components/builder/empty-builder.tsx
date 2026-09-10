@@ -3,6 +3,7 @@
 import { FileQuestion, Mic, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { FEATURES } from "@/features/builder/config";
 
 export function EmptyBuilder({
   onAddQuestion,
@@ -34,10 +35,12 @@ export function EmptyBuilder({
           <Plus className="size-[18px]" />
           Add question
         </Button>
-        <Button size="lg" variant="secondary" onClick={onDictate} className="sm:w-[200px]">
-          <Mic className="size-[18px]" />
-          Dictate questions
-        </Button>
+        {FEATURES.dictation ? (
+          <Button size="lg" variant="secondary" onClick={onDictate} className="sm:w-[200px]">
+            <Mic className="size-[18px]" />
+            Dictate questions
+          </Button>
+        ) : null}
       </div>
     </div>
   );

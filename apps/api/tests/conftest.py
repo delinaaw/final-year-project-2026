@@ -5,6 +5,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from voiceform.core.config import settings
+
+settings.auth_provider = "local"
 from voiceform.core.database import get_session
 from voiceform.db.base import Base
 from voiceform.main import app

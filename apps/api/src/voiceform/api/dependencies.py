@@ -5,10 +5,13 @@ import jwt
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from voiceform.core.config import settings
 from voiceform.core.database import get_session
 from voiceform.core.exceptions import ForbiddenError, NotFoundError, UnauthorizedError
 from voiceform.core.security import decode_token
 from voiceform.db.models import Form, User
+from voiceform.modules.auth.clerk import verify_session_token
+from voiceform.modules.auth.provisioning import user_for_claims
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -21,15 +24,38 @@ def _bearer_token(request: Request) -> str:
     return token
 
 
-async def get_current_user(request: Request, session: SessionDep) -> User:
-    token = _bearer_token(request)
+async def _local_user(session: AsyncSession, token: str) -> User:
     try:
         payload = decode_token(token, "access")
     except jwt.PyJWTError as exc:
         raise UnauthorizedError(message="Session expired") from exc
 
     user = await session.get(User, UUID(payload["sub"]))
-    if user is None or not user.is_active:
+    if user is None:
+        raise UnauthorizedError()
+    return user
+
+
+async def _clerk_user(session: AsyncSession, token: str) -> User:
+    claims = verify_session_token(token)
+    try:
+        user = await user_for_claims(session, claims)
+    except ValueError as exc:
+        raise UnauthorizedError(message=str(exc)) from exc
+    await session.commit()
+    return user
+
+
+async def get_current_user(request: Request, session: SessionDep) -> User:
+    token = _bearer_token(request)
+
+    user = (
+        await _clerk_user(session, token)
+        if settings.auth_provider == "clerk"
+        else await _local_user(session, token)
+    )
+
+    if not user.is_active:
         raise UnauthorizedError()
     return user
 

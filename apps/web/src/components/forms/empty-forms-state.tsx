@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, ImageIcon, Mic, Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 
 const OPTIONS = [
   {
@@ -8,20 +8,6 @@ const OPTIONS = [
     icon: Plus,
     title: "Start blank",
     body: "Add questions one at a time in the builder.",
-    badge: null,
-  },
-  {
-    id: "voice",
-    icon: Mic,
-    title: "Create by voice",
-    body: "Describe your form out loud and we draft the questions.",
-    badge: "Fastest way to start",
-  },
-  {
-    id: "template",
-    icon: ImageIcon,
-    title: "Use a template",
-    body: "Start from a survey, interview or feedback layout.",
     badge: null,
   },
 ] as const;
@@ -48,10 +34,10 @@ export function EmptyFormsState({
         </p>
       </div>
 
-      <div className="grid w-full max-w-[900px] grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid w-full max-w-[320px] grid-cols-1 gap-4">
         {OPTIONS.map((option) => {
           const Icon = option.icon;
-          const highlighted = option.id === "voice";
+          const highlighted = true;
           return (
             <button
               key={option.id}
