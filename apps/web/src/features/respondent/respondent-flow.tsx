@@ -176,8 +176,23 @@ export function RespondentFlow() {
       }
 
       setTranscripts({ ...transcripts, [question.id]: outcome.transcript });
-      setAnswers({ ...answers, [question.id]: { ...value, text: outcome.transcript } });
+      setAnswers({
+        ...answers,
+        [question.id]: {
+          text: outcome.transcript,
+          optionIds: outcome.selected_option_ids,
+          rating: outcome.rating,
+        },
+      });
       setRequiredError(false);
+
+      if (outcome.needs_confirmation) {
+        toast.info("We heard you, but could not match an option. Please pick one.");
+        setMode("text");
+        setVoiceStage("idle");
+        return;
+      }
+
       setVoiceStage("recorded");
     } catch {
       toast.error("Could not process that recording");
@@ -365,7 +380,17 @@ export function RespondentFlow() {
 
   if (!question) return null;
 
-  const supportsVoice = ["short_answer", "paragraph"].includes(question.type);
+  const supportsVoice = question.type !== "file_upload";
+
+  const matchedLabel =
+    question.type === "rating"
+      ? value.rating
+        ? `${value.rating} of 5`
+        : null
+      : question.options
+            .filter((option) => value.optionIds.includes(option.id))
+            .map((option) => option.label)
+            .join(", ") || null;
 
   return (
     <RespondentShell>
@@ -433,6 +458,7 @@ export function RespondentFlow() {
               elapsed={recorder.elapsed}
               peaks={recorder.peaks}
               transcript={transcripts[question.id] ?? null}
+              matchedLabel={matchedLabel}
               onStart={beginRecording}
               onStop={finishRecording}
               onCancel={resetVoice}

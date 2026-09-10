@@ -22,6 +22,7 @@ interface VoiceRecorderProps {
   elapsed: number;
   peaks: number[];
   transcript: string | null;
+  matchedLabel?: string | null;
   onStart: () => void;
   onStop: () => void;
   onCancel: () => void;
@@ -34,6 +35,7 @@ export function VoiceRecorder({
   elapsed,
   peaks,
   transcript,
+  matchedLabel,
   onStart,
   onStop,
   onCancel,
@@ -172,6 +174,11 @@ export function VoiceRecorder({
         <div className="flex flex-col gap-2.5 rounded-xl border border-feedback-success/30 bg-feedback-success-subtle p-5">
           <span className="text-body-s font-semibold text-feedback-success">Answer recorded</span>
           <p className="text-body-m leading-6 text-content-primary">&ldquo;{transcript}&rdquo;</p>
+          {matchedLabel ? (
+            <p className="text-body-s text-content-secondary">
+              Recorded as <span className="font-semibold text-content-primary">{matchedLabel}</span>
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button variant="secondary" onClick={onRetry}>

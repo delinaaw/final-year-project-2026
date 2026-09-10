@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, Query, Request, Response, UploadFile, statu
 from voiceform.api.dependencies import OwnedForm, SessionDep
 from voiceform.core.config import settings
 from voiceform.core.exceptions import ValidationError
-from voiceform.db.enums import InputMode, TranscriptStatus
+from voiceform.db.enums import InputMode, QuestionType, TranscriptStatus
 from voiceform.db.models import AudioRecording
 from voiceform.modules.responses import service
 from voiceform.modules.responses.schemas import (
@@ -21,6 +21,7 @@ from voiceform.modules.responses.schemas import (
     VoiceAnswerResult,
 )
 from voiceform.modules.speech import service as speech
+from voiceform.modules.speech.matching import match_answer
 from voiceform.modules.storage.service import answer_audio_key, get_storage
 
 public_router = APIRouter(prefix="/public/forms/{slug}", tags=["respondent"])
@@ -119,6 +120,15 @@ async def submit_voice_answer(
     transcript = await speech.transcribe_audio(payload, mime_type)
     recognised = speech.is_recognised(transcript)
 
+    question = next((q for q in form.questions if q.id == question_id), None)
+    if question is None:
+        raise ValidationError(message="That question is not part of this form")
+
+    option_ids: list[UUID] = []
+    rating: int | None = None
+    if recognised:
+        option_ids, rating = match_answer(question, transcript.text)
+
     answer = await service.save_answer(
         session,
         form,
@@ -126,8 +136,8 @@ async def submit_voice_answer(
         question_id,
         InputMode.VOICE,
         transcript.text if recognised else None,
-        [],
-        {},
+        option_ids,
+        {"rating": rating} if rating is not None else {},
         False,
     )
 
@@ -153,6 +163,8 @@ async def submit_voice_answer(
 
     await session.commit()
 
+    expects_structured = bool(question.options) or question.type == QuestionType.RATING
+
     return VoiceAnswerResult(
         answer_id=answer.id,
         status=recording.transcript_status,
@@ -160,6 +172,12 @@ async def submit_voice_answer(
         confidence=transcript.confidence,
         duration_seconds=transcript.duration_seconds,
         recognised=recognised,
+        selected_option_ids=option_ids,
+        rating=rating,
+        needs_confirmation=recognised
+        and expects_structured
+        and not option_ids
+        and rating is None,
     )
 
 

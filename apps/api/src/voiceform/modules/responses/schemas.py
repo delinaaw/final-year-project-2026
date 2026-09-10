@@ -116,6 +116,9 @@ class VoiceAnswerResult(BaseModel):
     confidence: float | None
     duration_seconds: float | None
     recognised: bool
+    selected_option_ids: list[UUID] = Field(default_factory=list)
+    rating: int | None = None
+    needs_confirmation: bool = False
 
 
 class PublicQuestionOption(BaseModel):

@@ -77,6 +77,9 @@ export interface VoiceAnswerResult {
   confidence: number | null;
   duration_seconds: number | null;
   recognised: boolean;
+  selected_option_ids: string[];
+  rating: number | null;
+  needs_confirmation: boolean;
 }
 
 export const respondentApi = {
