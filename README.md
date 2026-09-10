@@ -23,6 +23,7 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 cd apps/api && uv sync && cd ../..
+pnpm api:check    # verifies every credential against the real service
 pnpm api:migrate
 pnpm api:dev      # http://localhost:8000/docs
 pnpm dev          # http://localhost:3000

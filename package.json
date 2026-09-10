@@ -2,7 +2,9 @@
   "name": "voiceform",
   "private": true,
   "packageManager": "pnpm@9.12.0",
-  "engines": { "node": ">=20.11.0" },
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -13,6 +15,7 @@
     "api:dev": "uv run --directory apps/api uvicorn voiceform.main:app --reload --port 8000",
     "api:worker": "uv run --directory apps/api arq voiceform.workers.settings.WorkerSettings",
     "api:migrate": "uv run --directory apps/api alembic upgrade head",
+    "api:check": "uv run --directory apps/api python scripts/check_env.py",
     "api:revision": "uv run --directory apps/api alembic revision --autogenerate -m",
     "api:lint": "uv run --directory apps/api ruff check .",
     "api:format": "uv run --directory apps/api ruff format .",
