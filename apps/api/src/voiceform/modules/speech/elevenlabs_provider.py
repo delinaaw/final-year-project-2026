@@ -7,7 +7,7 @@ from voiceform.modules.speech.provider import Voice
 
 BASE_URL = "https://api.elevenlabs.io/v1"
 MODEL = "eleven_flash_v2_5"
-DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 
 SPEED_VALUES: dict[VoiceSpeed, float] = {
     VoiceSpeed.SLOW: 0.8,

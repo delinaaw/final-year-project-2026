@@ -47,9 +47,7 @@ async def test_submitting_without_required_answers_is_refused(client: AsyncClien
     started = await client.post(f"/public/forms/{slug}/responses", json={"respondent_key": "d1"})
     response_id = started.json()["id"]
 
-    response = await client.post(
-        f"/public/forms/{slug}/responses/{response_id}/submit", json={}
-    )
+    response = await client.post(f"/public/forms/{slug}/responses/{response_id}/submit", json={})
 
     assert response.status_code == 422
     assert "required" in response.json()["detail"]["message"]

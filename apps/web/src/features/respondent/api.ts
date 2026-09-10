@@ -65,6 +65,20 @@ export interface AnswerInput {
   was_edited?: boolean;
 }
 
+export interface QuestionAudio {
+  question_id: string;
+  audio_url: string;
+}
+
+export interface VoiceAnswerResult {
+  answer_id: string;
+  status: "pending" | "processing" | "completed" | "failed" | "not_recognised";
+  transcript: string | null;
+  confidence: number | null;
+  duration_seconds: number | null;
+  recognised: boolean;
+}
+
 export const respondentApi = {
   getForm: (slug: string) => api.get<PublicForm>(`/public/forms/${slug}`, { auth: false }),
 
@@ -79,6 +93,26 @@ export const respondentApi = {
     api.put<Answer>(`/public/forms/${slug}/responses/${responseId}/answers`, body, {
       auth: false,
     }),
+
+  questionAudio: (slug: string, questionId: string) =>
+    api.get<QuestionAudio>(`/public/forms/${slug}/questions/${questionId}/audio`, {
+      auth: false,
+    }),
+
+  submitVoiceAnswer: (
+    slug: string,
+    responseId: string,
+    questionId: string,
+    blob: Blob,
+  ) => {
+    const body = new FormData();
+    body.append("audio", blob, "answer.webm");
+    return api.post<VoiceAnswerResult>(
+      `/public/forms/${slug}/responses/${responseId}/answers/${questionId}/audio`,
+      body,
+      { auth: false },
+    );
+  },
 
   submit: (slug: string, responseId: string, durationSeconds: number) =>
     api.post<ResponseSession>(

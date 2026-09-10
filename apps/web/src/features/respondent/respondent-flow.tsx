@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, Clock, Mic, Pencil, Save } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, Keyboard, Mic, Pencil, Save } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,7 +8,11 @@ import { toast } from "sonner";
 import { AnswerInput, EMPTY_ANSWER, isAnswered, type AnswerValue } from "@/components/respondent/answer-input";
 import { DeadEnd } from "@/components/respondent/dead-end";
 import { ProgressHeader } from "@/components/respondent/progress-header";
+import { PlayQuestionButton } from "@/components/respondent/play-question-button";
 import { RespondentShell } from "@/components/respondent/respondent-shell";
+import { VoiceRecorder, type VoiceStage } from "@/components/respondent/voice-recorder";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import { respondentApi } from "@/features/respondent/api";
 import { Button } from "@/components/ui/button";
 import type { PublicQuestion } from "@/features/respondent/api";
 import {
@@ -46,9 +50,13 @@ export function RespondentFlow() {
   const [responseId, setResponseId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [requiredError, setRequiredError] = useState(false);
+  const [mode, setMode] = useState<"voice" | "text">("voice");
+  const [voiceStage, setVoiceStage] = useState<VoiceStage>("idle");
+  const [transcripts, setTranscripts] = useState<Record<string, string>>({});
   const [blocked, setBlocked] = useState<ApiError | null>(null);
   const startedAt = useRef<number>(Date.now());
 
+  const recorder = useAudioRecorder();
   const start = useStartResponse(slug);
   const saveAnswer = useSaveAnswer(slug, responseId);
   const submit = useSubmitResponse(slug, responseId);
@@ -136,6 +144,52 @@ export function RespondentFlow() {
   const persist = (target: PublicQuestion, next: AnswerValue) =>
     saveAnswer.mutate({ question_id: target.id, input_mode: "text", ...toPayload(target, next) });
 
+  const beginRecording = async () => {
+    setVoiceStage("permission");
+    const started = await recorder.start();
+    setVoiceStage(started ? "recording" : "blocked");
+  };
+
+  const finishRecording = async () => {
+    const result = await recorder.stop();
+    if (!question || !responseId) {
+      setVoiceStage("idle");
+      return;
+    }
+    if (!result) {
+      setVoiceStage("not_recognised");
+      return;
+    }
+
+    setVoiceStage("processing");
+    try {
+      const outcome = await respondentApi.submitVoiceAnswer(
+        slug,
+        responseId,
+        question.id,
+        result.blob,
+      );
+
+      if (!outcome.recognised || !outcome.transcript) {
+        setVoiceStage("not_recognised");
+        return;
+      }
+
+      setTranscripts({ ...transcripts, [question.id]: outcome.transcript });
+      setAnswers({ ...answers, [question.id]: { ...value, text: outcome.transcript } });
+      setRequiredError(false);
+      setVoiceStage("recorded");
+    } catch {
+      toast.error("Could not process that recording");
+      setVoiceStage("not_recognised");
+    }
+  };
+
+  const resetVoice = () => {
+    recorder.cancel();
+    setVoiceStage("idle");
+  };
+
   const goNext = () => {
     if (!question) return;
     const required = question.is_required || form.settings.all_questions_required;
@@ -146,8 +200,10 @@ export function RespondentFlow() {
     }
 
     setRequiredError(false);
-    if (isAnswered(question, value)) persist(question, value);
+    if (isAnswered(question, value) && voiceStage !== "recorded") persist(question, value);
 
+    resetVoice();
+    setMode(form.settings.read_questions_aloud ? "voice" : "text");
     if (index < questions.length - 1) setIndex(index + 1);
     else setStage(form.settings.allow_review_and_edit ? "review" : "submitted");
 
@@ -201,7 +257,7 @@ export function RespondentFlow() {
             {start.isPending ? "Starting…" : "Start answering"}
           </Button>
           <p className="text-[12px] text-content-placeholder">
-            Voice answering arrives soon. For now you can type your answers.
+            Your microphone is only used while you are answering a question.
           </p>
         </div>
       </RespondentShell>
@@ -309,6 +365,8 @@ export function RespondentFlow() {
 
   if (!question) return null;
 
+  const supportsVoice = ["short_answer", "paragraph"].includes(question.type);
+
   return (
     <RespondentShell>
       <div className="flex w-full max-w-[820px] flex-col gap-6">
@@ -317,10 +375,19 @@ export function RespondentFlow() {
         ) : null}
 
         <div className="flex flex-col gap-6 rounded-2xl border border-line bg-surface-card p-5 sm:p-8">
-          <h1 className="text-[20px] font-bold leading-7 text-content-primary sm:text-[24px] sm:leading-8">
-            {question.prompt}
-            {question.is_required ? <span className="ml-1 text-feedback-error">*</span> : null}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-[20px] font-bold leading-7 text-content-primary sm:text-[24px] sm:leading-8">
+              {question.prompt}
+              {question.is_required ? <span className="ml-1 text-feedback-error">*</span> : null}
+            </h1>
+            {form.settings.read_questions_aloud ? (
+              <PlayQuestionButton
+                slug={slug}
+                questionId={question.id}
+                autoPlay={form.settings.autoplay_audio}
+              />
+            ) : null}
+          </div>
 
           {requiredError ? (
             <p
@@ -331,14 +398,63 @@ export function RespondentFlow() {
             </p>
           ) : null}
 
-          <AnswerInput
-            question={question}
-            value={value}
-            onChange={(next) => {
-              setAnswers({ ...answers, [question.id]: next });
-              setRequiredError(false);
-            }}
-          />
+          {supportsVoice ? (
+            <div className="flex w-fit gap-1 rounded-xl bg-surface-subtle p-1">
+              {(["voice", "text"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setMode(option);
+                    if (option === "text") resetVoice();
+                  }}
+                  aria-pressed={mode === option}
+                  className={`focus-ring flex h-9 items-center gap-2 rounded-lg px-4 text-body-s font-semibold transition-colors ${
+                    mode === option
+                      ? "bg-surface-card text-content-primary"
+                      : "text-content-secondary"
+                  }`}
+                >
+                  {option === "voice" ? (
+                    <Mic className="size-4" />
+                  ) : (
+                    <Keyboard className="size-4" />
+                  )}
+                  {option === "voice" ? "Voice" : "Type"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {supportsVoice && mode === "voice" ? (
+            <VoiceRecorder
+              stage={voiceStage}
+              recorderState={recorder.state}
+              elapsed={recorder.elapsed}
+              peaks={recorder.peaks}
+              transcript={transcripts[question.id] ?? null}
+              onStart={beginRecording}
+              onStop={finishRecording}
+              onCancel={resetVoice}
+              onRetry={() => {
+                resetVoice();
+                void beginRecording();
+              }}
+              onSwitchToTyping={() => {
+                setMode("text");
+                resetVoice();
+              }}
+            />
+          ) : (
+            <AnswerInput
+              question={question}
+              value={value}
+              onChange={(next) => {
+                setAnswers({ ...answers, [question.id]: next });
+                setRequiredError(false);
+              }}
+            />
+          )}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button

@@ -1,19 +1,27 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, File, Query, Request, Response, UploadFile, status
 
 from voiceform.api.dependencies import OwnedForm, SessionDep
+from voiceform.core.config import settings
+from voiceform.core.exceptions import ValidationError
+from voiceform.db.enums import InputMode, TranscriptStatus
+from voiceform.db.models import AudioRecording
 from voiceform.modules.responses import service
 from voiceform.modules.responses.schemas import (
     AnswerPublic,
     PublicForm,
+    QuestionAudio,
     ResponseDetail,
     ResponseOverview,
     ResponseSession,
     StartResponseRequest,
     SubmitAnswerRequest,
     SubmitFormRequest,
+    VoiceAnswerResult,
 )
+from voiceform.modules.speech import service as speech
+from voiceform.modules.storage.service import answer_audio_key, get_storage
 
 public_router = APIRouter(prefix="/public/forms/{slug}", tags=["respondent"])
 router = APIRouter(prefix="/forms/{form_id}/responses", tags=["responses"])
@@ -71,6 +79,88 @@ async def submit_response(
     await service.submit_response(session, form, response, body.duration_seconds)
     await session.commit()
     return ResponseSession.model_validate(response)
+
+
+@public_router.get("/questions/{question_id}/audio", response_model=QuestionAudio)
+async def question_audio(slug: str, question_id: UUID, session: SessionDep) -> QuestionAudio:
+    form = await service.load_public_form(session, slug)
+    question = next((q for q in form.questions if q.id == question_id), None)
+    if question is None:
+        raise ValidationError(message="That question is not part of this form")
+
+    url = await speech.question_audio_url(
+        session, question, form.settings.voice_id, form.settings.voice_speed
+    )
+    await session.commit()
+    return QuestionAudio(question_id=question.id, audio_url=url)
+
+
+@public_router.post(
+    "/responses/{response_id}/answers/{question_id}/audio",
+    response_model=VoiceAnswerResult,
+)
+async def submit_voice_answer(
+    slug: str,
+    response_id: UUID,
+    question_id: UUID,
+    session: SessionDep,
+    audio: UploadFile = File(...),
+) -> VoiceAnswerResult:
+    form = await service.load_public_form(session, slug)
+    response = await service.load_response(session, form.id, response_id)
+
+    payload = await audio.read()
+    if len(payload) > settings.max_audio_bytes:
+        raise ValidationError(message="That recording is too long")
+    if not payload:
+        raise ValidationError(message="The recording was empty")
+
+    mime_type = audio.content_type or "audio/webm"
+    transcript = await speech.transcribe_audio(payload, mime_type)
+    recognised = speech.is_recognised(transcript)
+
+    answer = await service.save_answer(
+        session,
+        form,
+        response,
+        question_id,
+        InputMode.VOICE,
+        transcript.text if recognised else None,
+        [],
+        {},
+        False,
+    )
+
+    key = answer_audio_key(form.id, response.id, answer.id, speech.extension_for(mime_type))
+    await get_storage().put(key, payload, mime_type)
+
+    recording = answer.recording
+    if recording is None:
+        recording = AudioRecording(answer_id=answer.id, storage_key=key, mime_type=mime_type)
+        answer.recording = recording
+        session.add(recording)
+
+    recording.storage_key = key
+    recording.mime_type = mime_type
+    recording.size_bytes = len(payload)
+    recording.duration_seconds = transcript.duration_seconds
+    recording.transcript = transcript.text
+    recording.transcript_confidence = transcript.confidence
+    recording.transcript_provider = settings.stt_provider
+    recording.transcript_status = (
+        TranscriptStatus.COMPLETED if recognised else TranscriptStatus.NOT_RECOGNISED
+    )
+
+    await session.commit()
+
+    return VoiceAnswerResult(
+        answer_id=answer.id,
+        status=recording.transcript_status,
+        transcript=transcript.text or None,
+        confidence=transcript.confidence,
+        duration_seconds=transcript.duration_seconds,
+        recognised=recognised,
+    )
 
 
 @router.get("", response_model=list[ResponseDetail])

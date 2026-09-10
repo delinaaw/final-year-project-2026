@@ -104,6 +104,20 @@ class SubmitFormRequest(BaseModel):
     duration_seconds: int | None = None
 
 
+class QuestionAudio(BaseModel):
+    question_id: UUID
+    audio_url: str
+
+
+class VoiceAnswerResult(BaseModel):
+    answer_id: UUID
+    status: TranscriptStatus
+    transcript: str | None
+    confidence: float | None
+    duration_seconds: float | None
+    recognised: bool
+
+
 class PublicQuestionOption(BaseModel):
     id: UUID
     label: str

@@ -112,9 +112,7 @@ async def start_response(
     return response
 
 
-async def load_response(
-    session: AsyncSession, form_id: UUID, response_id: UUID
-) -> FormResponse:
+async def load_response(session: AsyncSession, form_id: UUID, response_id: UUID) -> FormResponse:
     result = await session.execute(
         select(FormResponse)
         .where(FormResponse.id == response_id, FormResponse.form_id == form_id)
@@ -194,9 +192,7 @@ async def submit_response(
     response.status = ResponseStatus.SUBMITTED
     response.submitted_at = datetime.now(UTC)
     response.duration_seconds = duration_seconds
-    response.primary_input_mode = (
-        InputMode.VOICE if InputMode.VOICE in modes else InputMode.TEXT
-    )
+    response.primary_input_mode = InputMode.VOICE if InputMode.VOICE in modes else InputMode.TEXT
 
     await session.flush()
     return response
