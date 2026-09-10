@@ -60,7 +60,12 @@ This signs your JWTs. Changing it later logs everyone out.
 docker compose up -d
 ```
 
-Gives you Postgres on `5432`, Redis on `6379`, and Mailpit on `8025`. The `.env` defaults already
+Gives you Postgres on **`5433`**, Redis on `6379`, and Mailpit on `8025`.
+
+> Postgres is on 5433, not 5432, on purpose. macOS developers very often already have a
+> Homebrew Postgres bound to `127.0.0.1:5432`, and because `localhost` resolves to the loopback
+> address first, it silently shadows Docker's published port. The symptom is
+> `role "voiceform" does not exist` even though the container is healthy. The `.env` defaults already
 point at all three. Nothing to copy.
 
 ---
@@ -139,7 +144,9 @@ fail silently in the browser with an opaque CORS error.
 ## 4. Gmail SMTP — 5 minutes
 
 **While developing, you do not need this.** Set `SMTP_HOST=localhost` and `SMTP_PORT=1025` and
-every email lands in Mailpit at `localhost:8025` instantly. Do this when you want real delivery.
+every email lands in Mailpit at `localhost:8025` instantly. You can leave `SMTP_USER` and
+`SMTP_PASSWORD` filled in — the SMTP provider skips authentication automatically for local
+relays, so the same `.env` works for both. Do the steps below when you want real delivery.
 
 1. **myaccount.google.com/security**
 2. Turn on **2-Step Verification**. App Passwords do not exist without it.

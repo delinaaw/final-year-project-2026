@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from voiceform.core.config import settings
+from voiceform.modules.email.smtp_provider import is_local_relay
 
 GREEN = "\033[32m"
 RED = "\033[31m"
@@ -82,14 +83,15 @@ async def check_storage() -> Result:
 
 async def check_smtp() -> Result:
     host, port = settings.smtp_host, settings.smtp_port
-    is_local = host in {"localhost", "127.0.0.1", "mailpit"}
+    local = is_local_relay(host)
 
-    if not is_local and not settings.smtp_password.get_secret_value():
+    if not local and not settings.smtp_password.get_secret_value():
         return Result("SMTP", False, "SMTP_PASSWORD is empty")
 
+    recipient = settings.smtp_user or "preflight@example.com"
     message = EmailMessage()
     message["From"] = settings.email_from
-    message["To"] = settings.smtp_user or "preflight@example.com"
+    message["To"] = recipient
     message["Subject"] = "VoiceForm preflight"
     message.set_content("Your SMTP credentials work.")
 
@@ -98,13 +100,13 @@ async def check_smtp() -> Result:
             message,
             hostname=host,
             port=port,
-            username=settings.smtp_user or None,
-            password=settings.smtp_password.get_secret_value() or None,
-            start_tls=settings.smtp_starttls and not is_local,
+            username=None if local else (settings.smtp_user or None),
+            password=None if local else (settings.smtp_password.get_secret_value() or None),
+            start_tls=settings.smtp_starttls and not local,
             timeout=20,
         )
-        target = "Mailpit at localhost:8025" if is_local else settings.smtp_user
-        return Result("SMTP", True, f"test email delivered to {target}")
+        where = "Mailpit at http://localhost:8025" if local else recipient
+        return Result("SMTP", True, f"test email delivered to {where}")
     except Exception as exc:
         return Result("SMTP", False, str(exc)[:120])
 
@@ -137,14 +139,16 @@ async def check_elevenlabs() -> Result:
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             res = await client.get(
-                "https://api.elevenlabs.io/v1/user/subscription",
+                "https://api.elevenlabs.io/v1/voices",
                 headers={"xi-api-key": key},
             )
         if res.status_code == 200:
-            data = res.json()
-            used = data.get("character_count", 0)
-            limit = data.get("character_limit", 0)
-            return Result("ElevenLabs", True, f"{used}/{limit} characters used", required=False)
+            count = len(res.json().get("voices", []))
+            return Result("ElevenLabs", True, f"{count} voices available", required=False)
+        if res.status_code == 401:
+            return Result(
+                "ElevenLabs", False, "key rejected, regenerate it at elevenlabs.io", required=False
+            )
         return Result("ElevenLabs", False, f"HTTP {res.status_code}", required=False)
     except Exception as exc:
         return Result("ElevenLabs", False, str(exc)[:120], required=False)
