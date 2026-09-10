@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 import { SectionHeading } from "@/components/marketing/section-heading";
 
-const FAQS = [
+export const FAQS = [
   {
     question: "What is VoiceForm and how does it work?",
     answer:
@@ -36,6 +36,30 @@ const FAQS = [
       "VoiceForm is built for anyone collecting data — surveys, registrations, feedback, or intake forms — especially where accessibility, mobile use, or speed matter.",
   },
 ];
+
+export function FaqList({ items }: { items: typeof FAQS }) {
+  return (
+    <Accordion.Root type="single" collapsible className="w-full">
+      {items.map((faq) => (
+        <Accordion.Item key={faq.question} value={faq.question} className="border-b border-line/70">
+          <Accordion.Header>
+            <Accordion.Trigger className="focus-ring group flex w-full items-center justify-between gap-4 rounded px-1 py-4 text-left sm:px-4">
+              <span className="text-body-m leading-6 text-content-primary sm:text-body-l">
+                {faq.question}
+              </span>
+              <ChevronDown className="size-5 shrink-0 text-content-primary transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </Accordion.Trigger>
+          </Accordion.Header>
+          <Accordion.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+            <p className="px-1 pb-5 text-body-m leading-6 text-content-primary/80 sm:px-4">
+              {faq.answer}
+            </p>
+          </Accordion.Content>
+        </Accordion.Item>
+      ))}
+    </Accordion.Root>
+  );
+}
 
 export function FaqSection() {
   return (

@@ -2,7 +2,7 @@
 
 import { CheckCircle2, ClipboardList, Clock, Keyboard, Mic, Pencil, Save } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AnswerInput, EMPTY_ANSWER, isAnswered, type AnswerValue } from "@/components/respondent/answer-input";
@@ -10,7 +10,15 @@ import { DeadEnd } from "@/components/respondent/dead-end";
 import { ProgressHeader } from "@/components/respondent/progress-header";
 import { PlayQuestionButton } from "@/components/respondent/play-question-button";
 import { RespondentShell } from "@/components/respondent/respondent-shell";
+import { OfflineScreen } from "@/components/respondent/offline-screen";
 import { SpokenOptions } from "@/components/respondent/spoken-options";
+import { useOnline } from "@/hooks/use-online";
+import {
+  clearPendingAnswer,
+  countPendingAnswers,
+  drainPendingAnswers,
+  savePendingAnswer,
+} from "@/lib/offline-store";
 import { VoiceRecorder, type VoiceStage } from "@/components/respondent/voice-recorder";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { respondentApi } from "@/features/respondent/api";
@@ -57,9 +65,21 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("idle");
   const [transcripts, setTranscripts] = useState<Record<string, string>>({});
   const [blocked, setBlocked] = useState<ApiError | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [dismissedOffline, setDismissedOffline] = useState(false);
   const startedAt = useRef<number>(Date.now());
 
+  const online = useOnline();
+  const flushPendingRef = useRef<(() => Promise<void>) | null>(null);
   const recorder = useAudioRecorder();
+  useEffect(() => {
+    void countPendingAnswers(slug).then(setPendingCount).catch(() => undefined);
+  }, [slug]);
+
+  useEffect(() => {
+    if (online && responseId) void flushPendingRef.current?.();
+  }, [online, responseId]);
+
   const start = useStartResponse(slug);
   const saveAnswer = useSaveAnswer(slug, responseId);
   const submit = useSubmitResponse(slug, responseId);
@@ -67,6 +87,23 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
   const questions = useMemo(() => form?.questions ?? [], [form]);
   const question = questions[index];
   const value = question ? (answers[question.id] ?? EMPTY_ANSWER) : EMPTY_ANSWER;
+
+  if (!online && !isPreview && !dismissedOffline && stage !== "submitted") {
+    return (
+      <OfflineScreen
+        pendingCount={pendingCount}
+        onRetry={() => {
+          if (navigator.onLine) {
+            void flushPending();
+            setDismissedOffline(false);
+          } else {
+            toast.error("Still offline. Check your connection.");
+          }
+        }}
+        onContinue={() => setDismissedOffline(true)}
+      />
+    );
+  }
 
   if (isPending) {
     return (
@@ -153,8 +190,48 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
 
   const persist = (target: PublicQuestion, next: AnswerValue) => {
     if (isPreview) return;
-    saveAnswer.mutate({ question_id: target.id, input_mode: "text", ...toPayload(target, next) });
+
+    const payload = toPayload(target, next);
+
+    if (!online && responseId) {
+      void savePendingAnswer({
+        slug,
+        responseId,
+        questionId: target.id,
+        inputMode: "text",
+        textValue: payload.text_value ?? null,
+        selectedOptionIds: payload.selected_option_ids ?? [],
+        value: payload.value ?? {},
+      }).then(() => countPendingAnswers(slug).then(setPendingCount));
+      return;
+    }
+
+    saveAnswer.mutate({ question_id: target.id, input_mode: "text", ...payload });
   };
+
+  const flushPending = async () => {
+    if (!responseId) return;
+    const queued = await drainPendingAnswers(slug);
+
+    for (const entry of queued) {
+      try {
+        await respondentApi.saveAnswer(slug, entry.responseId, {
+          question_id: entry.questionId,
+          input_mode: entry.inputMode,
+          text_value: entry.textValue,
+          selected_option_ids: entry.selectedOptionIds,
+          value: entry.value,
+        });
+        await clearPendingAnswer(entry.id);
+      } catch {
+        break;
+      }
+    }
+
+    setPendingCount(await countPendingAnswers(slug));
+  };
+
+  flushPendingRef.current = flushPending;
 
   const beginRecording = async () => {
     setVoiceStage("permission");
@@ -246,6 +323,11 @@ export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
   const finish = () => {
     if (isPreview) {
       setStage("submitted");
+      return;
+    }
+
+    if (!online) {
+      toast.error("You are offline. Reconnect to submit your answers.");
       return;
     }
 

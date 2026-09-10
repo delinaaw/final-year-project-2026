@@ -8,7 +8,7 @@ export interface PendingAnswer {
   inputMode: "voice" | "text";
   textValue: string | null;
   selectedOptionIds: string[];
-  audioBlob: Blob | null;
+  value: Record<string, unknown>;
   savedAt: number;
 }
 
@@ -22,8 +22,12 @@ db.version(1).stores({
 
 export { db };
 
-export async function savePendingAnswer(answer: PendingAnswer) {
-  await db.pendingAnswers.put(answer);
+export async function savePendingAnswer(answer: Omit<PendingAnswer, "id" | "savedAt">) {
+  await db.pendingAnswers.put({
+    ...answer,
+    id: `${answer.responseId}:${answer.questionId}`,
+    savedAt: Date.now(),
+  });
 }
 
 export async function countPendingAnswers(slug: string) {
@@ -31,8 +35,7 @@ export async function countPendingAnswers(slug: string) {
 }
 
 export async function drainPendingAnswers(slug: string) {
-  const pending = await db.pendingAnswers.where("slug").equals(slug).sortBy("savedAt");
-  return pending;
+  return db.pendingAnswers.where("slug").equals(slug).sortBy("savedAt");
 }
 
 export async function clearPendingAnswer(id: string) {
