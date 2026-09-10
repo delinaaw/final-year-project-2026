@@ -8,8 +8,16 @@ from voiceform.db.models import Question
 MATCH_THRESHOLD = 0.72
 
 NUMBER_WORDS = {
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-    "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "first": 1,
+    "second": 2,
+    "third": 3,
+    "fourth": 4,
+    "fifth": 5,
 }
 
 AFFIRMATIVE = {"yes", "yeah", "yep", "sure", "correct", "definitely", "absolutely"}
@@ -46,8 +54,7 @@ def match_choice(question: Question, transcript: str) -> list[UUID]:
         return []
 
     scored = [
-        (score_option(spoken, normalise(option.label)), option)
-        for option in question.options
+        (score_option(spoken, normalise(option.label)), option) for option in question.options
     ]
     scored.sort(key=lambda pair: pair[0], reverse=True)
 

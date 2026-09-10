@@ -4,9 +4,10 @@ from fastapi import APIRouter, File, Query, Request, Response, UploadFile, statu
 
 from voiceform.api.dependencies import OwnedForm, SessionDep
 from voiceform.core.config import settings
-from voiceform.core.exceptions import ValidationError
+from voiceform.core.exceptions import NotFoundError, ValidationError
 from voiceform.db.enums import InputMode, QuestionType, TranscriptStatus
 from voiceform.db.models import AudioRecording
+from voiceform.modules.forms import service as forms_service
 from voiceform.modules.responses import service
 from voiceform.modules.responses.schemas import (
     AnswerPublic,
@@ -174,10 +175,7 @@ async def submit_voice_answer(
         recognised=recognised,
         selected_option_ids=option_ids,
         rating=rating,
-        needs_confirmation=recognised
-        and expects_structured
-        and not option_ids
-        and rating is None,
+        needs_confirmation=recognised and expects_structured and not option_ids and rating is None,
     )
 
 
@@ -188,24 +186,75 @@ async def list_responses(
     limit: int = Query(default=25, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> list[ResponseDetail]:
-    raise NotImplementedError
+    responses, total = await service.list_responses(session, form.id, limit, offset)
+    return [
+        ResponseDetail(
+            id=response.id,
+            index=offset + position + 1,
+            total=total,
+            respondent_email=response.respondent_email,
+            submitted_at=response.submitted_at,
+            duration_seconds=response.duration_seconds,
+            primary_input_mode=response.primary_input_mode,
+            answers=[AnswerPublic.model_validate(a) for a in response.answers],
+        )
+        for position, response in enumerate(responses)
+    ]
 
 
 @router.get("/overview", response_model=ResponseOverview)
 async def response_overview(form: OwnedForm, session: SessionDep) -> ResponseOverview:
-    raise NotImplementedError
+    loaded = await forms_service.load_form(session, form.id)
+    if loaded is None:
+        raise NotFoundError()
+    responses, _ = await service.list_responses(session, form.id, 1000, 0)
+    return ResponseOverview.model_validate(service.build_overview(loaded, responses))
 
 
-@router.get("/export", response_class=Response)
+@router.get("/export")
 async def export_csv(form: OwnedForm, session: SessionDep) -> Response:
-    raise NotImplementedError
+    loaded = await forms_service.load_form(session, form.id)
+    if loaded is None:
+        raise NotFoundError()
+    responses, _ = await service.list_responses(session, form.id, 10000, 0)
+    body = service.build_csv(loaded, responses)
+
+    return Response(
+        content=body,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{loaded.slug}-responses.csv"'},
+    )
 
 
 @router.get("/{response_id}", response_model=ResponseDetail)
 async def get_response(response_id: UUID, form: OwnedForm, session: SessionDep) -> ResponseDetail:
-    raise NotImplementedError
+    response = await service.load_submitted_response(session, form.id, response_id)
+    total = await service.count_submitted(session, form.id)
+    position = await service.response_position(session, form.id, response_id)
+
+    answers = []
+    storage = get_storage()
+    for answer in response.answers:
+        payload = AnswerPublic.model_validate(answer)
+        if answer.recording and payload.recording:
+            payload.recording.audio_url = await storage.presign_get(
+                answer.recording.storage_key, 3600
+            )
+        answers.append(payload)
+
+    return ResponseDetail(
+        id=response.id,
+        index=position,
+        total=total,
+        respondent_email=response.respondent_email,
+        submitted_at=response.submitted_at,
+        duration_seconds=response.duration_seconds,
+        primary_input_mode=response.primary_input_mode,
+        answers=answers,
+    )
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_all_responses(form: OwnedForm, session: SessionDep) -> None:
-    raise NotImplementedError
+    await service.delete_all_responses(session, form.id)
+    await session.commit()

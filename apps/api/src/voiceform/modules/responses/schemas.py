@@ -15,7 +15,7 @@ from voiceform.db.enums import (
 
 class RecordingPublic(BaseModel):
     id: UUID
-    audio_url: str | None
+    audio_url: str | None = None
     duration_seconds: float | None
     waveform_peaks: list[float]
     transcript: str | None

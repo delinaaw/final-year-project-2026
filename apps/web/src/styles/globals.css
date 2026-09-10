@@ -34,6 +34,7 @@
     --feedback-error-subtle: 2 100% 97%;
 
     --radius: 0.75rem;
+    --chart-surface: #ffffff;
   }
 
   * {
