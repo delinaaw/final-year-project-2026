@@ -44,6 +44,7 @@ async def load_form(session: AsyncSession, form_id: UUID) -> Form | None:
             selectinload(Form.settings),
             selectinload(Form.theme),
         )
+        .execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
 
@@ -57,6 +58,7 @@ async def load_by_slug(session: AsyncSession, slug: str) -> Form | None:
             selectinload(Form.settings),
             selectinload(Form.theme),
         )
+        .execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
 

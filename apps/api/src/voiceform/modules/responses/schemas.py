@@ -4,7 +4,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from voiceform.db.enums import InputMode, QuestionType, ResponseStatus, TranscriptStatus
+from voiceform.db.enums import (
+    FormStatus,
+    InputMode,
+    QuestionType,
+    ResponseStatus,
+    TranscriptStatus,
+)
 
 
 class RecordingPublic(BaseModel):
@@ -96,3 +102,55 @@ class ResponseOverview(BaseModel):
 
 class SubmitFormRequest(BaseModel):
     duration_seconds: int | None = None
+
+
+class PublicQuestionOption(BaseModel):
+    id: UUID
+    label: str
+
+    model_config = {"from_attributes": True}
+
+
+class PublicQuestion(BaseModel):
+    id: UUID
+    type: QuestionType
+    prompt: str
+    help_text: str | None
+    position: int
+    is_required: bool
+    options: list[PublicQuestionOption]
+
+    model_config = {"from_attributes": True}
+
+
+class PublicFormSettings(BaseModel):
+    read_questions_aloud: bool
+    autoplay_audio: bool
+    show_live_transcription: bool
+    allow_review_and_edit: bool
+    collect_respondent_email: bool
+    show_progress_bar: bool
+    all_questions_required: bool
+
+    model_config = {"from_attributes": True}
+
+
+class PublicFormTheme(BaseModel):
+    primary_color: str
+
+    model_config = {"from_attributes": True}
+
+
+class PublicForm(BaseModel):
+    id: UUID
+    slug: str
+    title: str
+    description: str | None
+    status: FormStatus
+    closing_message: str | None
+    closed_at: datetime | None
+    questions: list[PublicQuestion]
+    settings: PublicFormSettings
+    theme: PublicFormTheme
+
+    model_config = {"from_attributes": True}

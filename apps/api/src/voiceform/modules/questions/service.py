@@ -41,7 +41,7 @@ async def load_question(session: AsyncSession, form_id: UUID, question_id: UUID)
 
 def _sync_options(question: Question, options: list[QuestionOptionInput]) -> None:
     if question.type not in CHOICE_TYPES:
-        question.options.clear()
+        question.options = []
         return
     if not options:
         raise ValidationError(message="This question type needs at least one option")
@@ -58,7 +58,7 @@ def _sync_options(question: Question, options: list[QuestionOptionInput]) -> Non
             option = QuestionOption(label=payload.label, position=index)
         kept.append(option)
 
-    question.options[:] = kept
+    question.options = kept
 
 
 async def create_question(
