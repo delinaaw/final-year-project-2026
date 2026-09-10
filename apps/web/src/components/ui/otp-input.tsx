@@ -53,7 +53,7 @@ export function OtpInput({
   };
 
   return (
-    <div className="flex gap-2 sm:gap-3">
+    <div className="flex gap-1.5 xs:gap-2 sm:gap-3">
       {Array.from({ length }).map((_, index) => (
         <input
           key={index}
@@ -69,7 +69,7 @@ export function OtpInput({
           onKeyDown={(event) => handleKeyDown(index, event)}
           aria-label={`Digit ${index + 1}`}
           className={cn(
-            "focus-ring h-14 w-full min-w-0 rounded-lg border bg-surface-page text-center text-[24px] font-bold text-content-primary sm:h-16",
+            "focus-ring h-[52px] w-full min-w-0 rounded-lg border bg-surface-page text-center text-[20px] font-bold text-content-primary sm:h-16 sm:text-[24px]",
             invalid ? "border-state-danger" : "border-line",
           )}
         />
