@@ -36,6 +36,11 @@ export default {
           DEFAULT: "hsl(var(--border-default))",
           strong: "hsl(var(--border-strong))",
         },
+        marine: {
+          DEFAULT: "#1877f2",
+          deep: "#0333ff",
+          teal: "#26a1b2",
+        },
         state: {
           success: "hsl(var(--state-success))",
           warning: "hsl(var(--state-warning))",
@@ -45,6 +50,7 @@ export default {
       },
       fontFamily: {
         sans: ["var(--font-manrope)", "system-ui", "sans-serif"],
+        wordmark: ["var(--font-krona)", "var(--font-manrope)", "sans-serif"],
       },
       fontSize: {
         "display-l": ["2.5rem", { lineHeight: "3rem", fontWeight: "700" }],
@@ -61,14 +67,28 @@ export default {
       boxShadow: {
         card: "0 8px 12px 0 rgb(128 125 254 / 0.08)",
       },
+      backgroundImage: {
+        "brand-gradient": "linear-gradient(169deg, #807dfe 9%, #0333ff 88%)",
+        "headline-gradient": "linear-gradient(175deg, #0333ff 65%, #26a1b2 84%)",
+      },
       keyframes: {
         "waveform-pulse": {
           "0%, 100%": { transform: "scaleY(0.4)" },
           "50%": { transform: "scaleY(1)" },
         },
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
       },
       animation: {
         "waveform-pulse": "waveform-pulse 1s ease-in-out infinite",
+        "accordion-down": "accordion-down 200ms ease-out",
+        "accordion-up": "accordion-up 200ms ease-out",
       },
     },
   },

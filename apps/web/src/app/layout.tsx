@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Krona_One, Manrope } from "next/font/google";
 
 import { Providers } from "@/app/providers";
 import "@/styles/globals.css";
@@ -7,6 +7,13 @@ import "@/styles/globals.css";
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+const kronaOne = Krona_One({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-krona",
   display: "swap",
 });
 
@@ -21,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    <html lang="en" className={`${manrope.variable} ${kronaOne.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>
