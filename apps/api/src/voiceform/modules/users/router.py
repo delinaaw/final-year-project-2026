@@ -16,11 +16,14 @@ async def get_me(user: CurrentUser) -> UserPublic:
 
 
 @router.patch("/me", response_model=UserPublic)
-async def update_me(body: UpdateProfileRequest, user: CurrentUser) -> UserPublic:
+async def update_me(
+    body: UpdateProfileRequest, user: CurrentUser, session: SessionDep
+) -> UserPublic:
     if body.full_name is not None:
         user.full_name = body.full_name.strip()
     if body.avatar_url is not None:
         user.avatar_url = body.avatar_url
+    await session.commit()
     return UserPublic.model_validate(user)
 
 
@@ -32,3 +35,4 @@ async def change_password(
         raise ValidationError(message="Your current password is incorrect")
     user.password_hash = hash_password(body.password)
     await revoke_all_tokens(session, user.id)
+    await session.commit()

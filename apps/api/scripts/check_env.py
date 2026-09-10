@@ -149,9 +149,11 @@ async def check_elevenlabs() -> Result:
         count = len(res.json().get("voices", []))
         return Result("ElevenLabs", True, f"{count} voices available", required=False)
 
-    detail = res.json().get("detail", {}) if res.headers.get("content-type", "").startswith(
-        "application/json"
-    ) else {}
+    detail = (
+        res.json().get("detail", {})
+        if res.headers.get("content-type", "").startswith("application/json")
+        else {}
+    )
     message = detail.get("message") or f"HTTP {res.status_code}"
     return Result("ElevenLabs", False, message[:140], required=False)
 

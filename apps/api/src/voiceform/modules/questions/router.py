@@ -19,6 +19,7 @@ async def create_question(
     body: CreateQuestionRequest, form: OwnedForm, session: SessionDep
 ) -> QuestionPublic:
     question = await service.create_question(session, form.id, body)
+    await session.commit()
     return QuestionPublic.model_validate(question)
 
 
@@ -28,6 +29,7 @@ async def update_question(
 ) -> QuestionPublic:
     question = await service.load_question(session, form.id, question_id)
     updated = await service.update_question(session, question, body)
+    await session.commit()
     return QuestionPublic.model_validate(updated)
 
 
@@ -35,6 +37,7 @@ async def update_question(
 async def delete_question(question_id: UUID, form: OwnedForm, session: SessionDep) -> None:
     question = await service.load_question(session, form.id, question_id)
     await session.delete(question)
+    await session.commit()
 
 
 @router.post("/reorder", response_model=list[QuestionPublic])
@@ -42,4 +45,5 @@ async def reorder_questions(
     body: ReorderQuestionsRequest, form: OwnedForm, session: SessionDep
 ) -> list[QuestionPublic]:
     questions = await service.reorder_questions(session, form.id, body.question_ids)
+    await session.commit()
     return [QuestionPublic.model_validate(q) for q in questions]

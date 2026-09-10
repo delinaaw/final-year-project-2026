@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi import APIRouter, BackgroundTasks, Query, status
 
 from voiceform.api.dependencies import CurrentUser, OwnedForm, SessionDep
@@ -43,6 +41,7 @@ async def create_form(
 ) -> FormDetail:
     form = await service.create_form(session, user, body.title, body.description)
     loaded = await service.load_form(session, form.id)
+    await session.commit()
     return FormDetail.model_validate(loaded)
 
 
@@ -55,27 +54,27 @@ async def get_form(form: OwnedForm, session: SessionDep) -> FormDetail:
 
 
 @router.patch("/{form_id}", response_model=FormDetail)
-async def update_form(
-    body: UpdateFormRequest, form: OwnedForm, session: SessionDep
-) -> FormDetail:
+async def update_form(body: UpdateFormRequest, form: OwnedForm, session: SessionDep) -> FormDetail:
     if body.title is not None:
         form.title = body.title
     if body.description is not None:
         form.description = body.description
-    await session.flush()
     loaded = await service.load_form(session, form.id)
+    await session.commit()
     return FormDetail.model_validate(loaded)
 
 
 @router.delete("/{form_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_form(form: OwnedForm, session: SessionDep) -> None:
     await session.delete(form)
+    await session.commit()
 
 
 @router.post("/{form_id}/duplicate", response_model=FormDetail, status_code=201)
 async def duplicate_form(form: OwnedForm, session: SessionDep) -> FormDetail:
     copy = await service.duplicate_form(session, form)
     loaded = await service.load_form(session, copy.id)
+    await session.commit()
     return FormDetail.model_validate(loaded)
 
 
@@ -93,6 +92,7 @@ async def publish_form(
     loaded.settings.allow_review_and_edit = body.allow_review_and_edit
 
     await service.publish_form(session, loaded)
+    await session.commit()
     return PublishedFormResponse(
         form=FormDetail.model_validate(loaded),
         respondent_url=f"{settings.app_url}/f/{loaded.slug}",
@@ -105,6 +105,7 @@ async def close_responses(
 ) -> FormDetail:
     await service.close_form(session, form, body.closing_message)
     loaded = await service.load_form(session, form.id)
+    await session.commit()
     return FormDetail.model_validate(loaded)
 
 
@@ -112,6 +113,7 @@ async def close_responses(
 async def reopen_responses(form: OwnedForm, session: SessionDep) -> FormDetail:
     await service.reopen_form(session, form)
     loaded = await service.load_form(session, form.id)
+    await session.commit()
     return FormDetail.model_validate(loaded)
 
 
@@ -124,7 +126,7 @@ async def update_settings(
         raise NotFoundError()
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(loaded.settings, field, value)
-    await session.flush()
+    await session.commit()
     return FormSettingsPublic.model_validate(loaded.settings)
 
 
@@ -137,7 +139,7 @@ async def update_theme(
         raise NotFoundError()
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(loaded.theme, field, value)
-    await session.flush()
+    await session.commit()
     return FormThemePublic.model_validate(loaded.theme)
 
 

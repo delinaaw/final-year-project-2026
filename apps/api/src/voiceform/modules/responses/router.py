@@ -59,9 +59,7 @@ async def export_csv(form: OwnedForm, session: SessionDep) -> Response:
 
 
 @router.get("/{response_id}", response_model=ResponseDetail)
-async def get_response(
-    response_id: UUID, form: OwnedForm, session: SessionDep
-) -> ResponseDetail:
+async def get_response(response_id: UUID, form: OwnedForm, session: SessionDep) -> ResponseDetail:
     raise NotImplementedError
 
 

@@ -4,11 +4,12 @@ const BAR_HEIGHTS = [16, 28, 32, 22, 12];
 
 interface LogoProps {
   className?: string;
-  tone?: "brand" | "inverse";
+  tone?: "brand" | "inverse" | "marine";
 }
 
 export function Logo({ className, tone = "brand" }: LogoProps) {
-  const barColor = tone === "inverse" ? "bg-content-inverse" : "bg-brand";
+  const barColor =
+    tone === "inverse" ? "bg-content-inverse" : tone === "marine" ? "bg-marine" : "bg-brand";
   const textColor = tone === "inverse" ? "text-content-inverse" : "text-content-primary";
 
   return (

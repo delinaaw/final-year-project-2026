@@ -56,10 +56,12 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "TCH", "RUF", "ASYNC", "S"]
-ignore = ["S101", "B008"]
+ignore = ["S101", "B008", "N811", "RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
+"src/voiceform/modules/auth/service.py" = ["S105"]
+"src/voiceform/modules/auth/schemas.py" = ["S105"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["voiceform"]
@@ -71,5 +73,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["src"]

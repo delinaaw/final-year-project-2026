@@ -32,6 +32,8 @@ async def sign_up(
     code = await service.create_verification_code(session, user)
     tokens = await service.issue_tokens(session, user)
 
+    await session.commit()
+
     background.add_task(
         send_template,
         to=user.email,
@@ -46,6 +48,7 @@ async def sign_up(
 async def log_in(body: LoginRequest, session: SessionDep) -> AuthResponse:
     user = await service.authenticate(session, body.email, body.password)
     tokens = await service.issue_tokens(session, user, body.remember_me)
+    await session.commit()
     return AuthResponse(user=UserPublic.model_validate(user), tokens=tokens)
 
 
@@ -55,12 +58,15 @@ async def refresh(body: RefreshRequest, session: SessionDep) -> TokenPair:
         payload = decode_token(body.refresh_token, "refresh")
     except jwt.PyJWTError as exc:
         raise UnauthorizedError(message="Session expired") from exc
-    return await service.rotate_refresh_token(session, UUID(payload["sub"]), body.refresh_token)
+    tokens = await service.rotate_refresh_token(session, UUID(payload["sub"]), body.refresh_token)
+    await session.commit()
+    return tokens
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def log_out(user: CurrentUser, session: SessionDep) -> None:
     await service.revoke_all_tokens(session, user.id)
+    await session.commit()
 
 
 @router.post("/verify-email", response_model=UserPublic)
@@ -68,6 +74,7 @@ async def verify_email(
     body: VerifyEmailRequest, user: CurrentUser, session: SessionDep
 ) -> UserPublic:
     await service.consume_verification_code(session, user, body.code)
+    await session.commit()
     return UserPublic.model_validate(user)
 
 
@@ -76,6 +83,8 @@ async def resend_verification(
     user: CurrentUser, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
     code = await service.create_verification_code(session, user)
+    await session.commit()
+
     background.add_task(
         send_template,
         to=user.email,
@@ -93,6 +102,7 @@ async def forgot_password(
     user = await service.get_user_by_email(session, body.email)
     if user is not None:
         token = await service.create_reset_token(session, user)
+        await session.commit()
         background.add_task(
             send_template,
             to=user.email,
@@ -111,6 +121,8 @@ async def reset_password(
     body: ResetPasswordRequest, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
     user = await service.reset_password(session, body.token, body.password)
+    await session.commit()
+
     background.add_task(
         send_template,
         to=user.email,

@@ -19,8 +19,9 @@ def build_slug(title: str) -> str:
     return f"{base}-{token_hex(3)}"
 
 
-async def create_form(session: AsyncSession, owner: User, title: str, description: str | None
-                      ) -> Form:
+async def create_form(
+    session: AsyncSession, owner: User, title: str, description: str | None
+) -> Form:
     form = Form(
         owner_id=owner.id,
         title=title,

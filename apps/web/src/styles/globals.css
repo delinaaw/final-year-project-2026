@@ -10,7 +10,7 @@
 
     --surface-page: 0 0% 99%;
     --surface-card: 0 0% 100%;
-    --surface-subtle: 240 20% 98%;
+    --surface-subtle: 240 24% 97%;
 
     --text-primary: 238 97% 12%;
     --text-secondary: 240 17% 44%;
@@ -25,6 +25,13 @@
     --state-danger: 0 84% 60%;
     --state-info: 214 89% 52%;
     --text-link: 214 89% 52%;
+
+    --feedback-success: 121 94% 39%;
+    --feedback-success-subtle: 120 68% 95%;
+    --feedback-warning: 27 80% 45%;
+    --feedback-warning-subtle: 33 100% 96%;
+    --feedback-error: 2 97% 60%;
+    --feedback-error-subtle: 2 100% 97%;
 
     --radius: 0.75rem;
   }

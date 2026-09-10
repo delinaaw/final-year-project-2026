@@ -41,6 +41,14 @@ export default {
           deep: "#0333ff",
           teal: "#26a1b2",
         },
+        feedback: {
+          success: "hsl(var(--feedback-success))",
+          "success-subtle": "hsl(var(--feedback-success-subtle))",
+          warning: "hsl(var(--feedback-warning))",
+          "warning-subtle": "hsl(var(--feedback-warning-subtle))",
+          error: "hsl(var(--feedback-error))",
+          "error-subtle": "hsl(var(--feedback-error-subtle))",
+        },
         state: {
           success: "hsl(var(--state-success))",
           warning: "hsl(var(--state-warning))",

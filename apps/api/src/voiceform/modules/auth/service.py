@@ -172,9 +172,7 @@ async def reset_password(session: AsyncSession, raw_token: str, new_password: st
             VerificationCode.expires_at > datetime.now(UTC),
         )
     )
-    record = next(
-        (r for r in result.scalars() if verify_token_hash(raw_token, r.code_hash)), None
-    )
+    record = next((r for r in result.scalars() if verify_token_hash(raw_token, r.code_hash)), None)
     if record is None:
         raise ValidationError(message="This reset link has expired. Request a new one")
 
