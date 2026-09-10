@@ -34,3 +34,4 @@ test-results/
 *.log
 tmp/
 uploads/
+.gstack/

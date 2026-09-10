@@ -1,0 +1,14 @@
+export const OAUTH_ENABLED = false;
+
+export const PASSWORD_RULES = [
+  { id: "length", label: "At least 8 characters", test: (v: string) => v.length >= 8 },
+  {
+    id: "numberSymbol",
+    label: "One number and one symbol",
+    test: (v: string) => /\d/.test(v) && /[^A-Za-z0-9]/.test(v),
+  },
+  { id: "uppercase", label: "One uppercase letter", test: (v: string) => /[A-Z]/.test(v) },
+] as const;
+
+export const RESEND_COOLDOWN_SECONDS = 45;
+export const MAX_LOGIN_ATTEMPTS = 5;

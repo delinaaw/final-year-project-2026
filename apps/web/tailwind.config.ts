@@ -22,6 +22,7 @@ export default {
           secondary: "hsl(var(--text-secondary))",
           placeholder: "hsl(var(--text-placeholder))",
           inverse: "hsl(var(--text-inverse))",
+          link: "hsl(var(--text-link))",
         },
         line: {
           DEFAULT: "hsl(var(--border-default))",

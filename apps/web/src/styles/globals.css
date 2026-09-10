@@ -24,6 +24,7 @@
     --state-warning: 38 92% 50%;
     --state-danger: 0 84% 60%;
     --state-info: 214 89% 52%;
+    --text-link: 214 89% 52%;
 
     --radius: 0.75rem;
   }

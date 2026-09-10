@@ -6,7 +6,9 @@
     "node": ">=20.11.0"
   },
   "scripts": {
+    "predev": "node scripts/sync-web-env.mjs",
     "dev": "turbo run dev",
+    "prebuild": "node scripts/sync-web-env.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -22,7 +24,8 @@
     "api:test": "uv run --directory apps/api pytest",
     "client:generate": "pnpm --filter @voiceform/api-client generate",
     "services:up": "docker compose up -d",
-    "services:down": "docker compose down"
+    "services:down": "docker compose down",
+    "env:sync": "node scripts/sync-web-env.mjs"
   },
   "devDependencies": {
     "prettier": "^3.3.3",
