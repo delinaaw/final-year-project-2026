@@ -1,31 +1,27 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { AuthAlert } from "@/components/auth/auth-alert";
 import { AuthHeading } from "@/components/auth/auth-heading";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { OtpInput } from "@/components/ui/otp-input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { clerkMessage } from "@/features/auth/clerk-errors";
+import { authApi } from "@/features/auth/api";
 import { PASSWORD_RULES } from "@/features/auth/config";
 import { resetPasswordSchema, type ResetPasswordValues } from "@/features/auth/schemas";
+import { useAuthError } from "@/features/auth/use-auth-error";
 import { cn } from "@/lib/utils";
 
 export function ResetPasswordForm() {
   const router = useRouter();
-  const email = useSearchParams().get("email") ?? "";
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const [code, setCode] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const token = useSearchParams().get("token") ?? "";
+  const { message, capture, clear } = useAuthError();
 
   const {
     register,
@@ -39,36 +35,15 @@ export function ResetPasswordForm() {
 
   const password = watch("password");
 
-  const submit = handleSubmit(async (values) => {
-    if (!isLoaded || !signIn) return;
+  const mutation = useMutation({
+    mutationFn: authApi.resetPassword,
+    onSuccess: () => router.push("/password-updated"),
+    onError: capture,
+  });
 
-    if (code.length < 6) {
-      setMessage("Enter the 6-digit code from your email");
-      return;
-    }
-
-    setMessage(null);
-    setPending(true);
-
-    try {
-      const attempt = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code,
-        password: values.password,
-      });
-
-      if (attempt.status === "complete") {
-        await setActive({ session: attempt.createdSessionId });
-        router.push("/password-updated");
-        return;
-      }
-
-      setMessage("That did not complete the reset. Try again.");
-    } catch (error) {
-      setMessage(clerkMessage(error, "That code is not correct"));
-    } finally {
-      setPending(false);
-    }
+  const submit = handleSubmit((values) => {
+    clear();
+    mutation.mutate({ token, password: values.password });
   });
 
   return (
@@ -83,20 +58,15 @@ export function ResetPasswordForm() {
 
       <AuthHeading
         title="Set a new password"
-        description={
-          email
-            ? `Enter the code sent to ${email} and choose a new password.`
-            : "Enter the code from your email and choose a new password."
-        }
+        description="Your new password must be different from any you have used before."
       />
 
+      {!token ? (
+        <AuthAlert message="This reset link is incomplete. Request a new one from the login screen." />
+      ) : null}
       {message ? <AuthAlert message={message} /> : null}
 
       <div className="flex flex-col gap-5">
-        <Field label="Reset code" htmlFor="reset-code">
-          <OtpInput value={code} onChange={setCode} invalid={Boolean(message)} />
-        </Field>
-
         <Field label="New password" htmlFor="password" error={errors.password?.message}>
           <PasswordInput
             id="password"
@@ -129,7 +99,7 @@ export function ResetPasswordForm() {
                 <span
                   className={cn(
                     "flex size-5 items-center justify-center rounded-full transition-colors",
-                    passed ? "bg-state-success" : "border border-line bg-surface-subtle",
+                    passed ? "bg-state-success" : "bg-surface-subtle border border-line",
                   )}
                 >
                   <Check
@@ -154,8 +124,8 @@ export function ResetPasswordForm() {
         </ul>
       </div>
 
-      <Button type="submit" size="lg" disabled={pending || !isLoaded}>
-        {pending ? "Resetting…" : "Reset password"}
+      <Button type="submit" size="lg" disabled={mutation.isPending || !token}>
+        {mutation.isPending ? "Resetting…" : "Reset password"}
       </Button>
     </form>
   );

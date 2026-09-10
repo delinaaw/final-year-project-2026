@@ -1,6 +1,6 @@
 "use client";
 
-import { useSignUp } from "@clerk/nextjs";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,70 +9,66 @@ import { AuthAlert } from "@/components/auth/auth-alert";
 import { AuthHeading } from "@/components/auth/auth-heading";
 import { Button } from "@/components/ui/button";
 import { OtpInput } from "@/components/ui/otp-input";
-import { clerkMessage } from "@/features/auth/clerk-errors";
+import { authApi } from "@/features/auth/api";
 import { RESEND_COOLDOWN_SECONDS } from "@/features/auth/config";
+import { verifyEmailSchema } from "@/features/auth/schemas";
+import { useAuthError } from "@/features/auth/use-auth-error";
 import { useCountdown } from "@/hooks/use-countdown";
+import { useSession } from "@/hooks/use-session";
+import { queryKeys } from "@/lib/query-keys";
 
 export function VerifyEmailForm() {
   const router = useRouter();
-  const { signUp, setActive, isLoaded } = useSignUp();
+  const queryClient = useQueryClient();
+  const { data: user } = useSession();
   const [code, setCode] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const { message, capture, clear } = useAuthError();
   const { label, isComplete, restart } = useCountdown(RESEND_COOLDOWN_SECONDS);
 
-  const address = signUp?.emailAddress ?? "your email";
+  const verify = useMutation({
+    mutationFn: authApi.verifyEmail,
+    onSuccess: (verified) => {
+      queryClient.setQueryData(queryKeys.session, verified);
+      toast.success("Email verified");
+      router.push("/forms");
+    },
+    onError: capture,
+  });
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!isLoaded || !signUp) return;
-
-    setMessage(null);
-    setPending(true);
-
-    try {
-      const attempt = await signUp.attemptEmailAddressVerification({ code });
-
-      if (attempt.status === "complete") {
-        await setActive({ session: attempt.createdSessionId });
-        toast.success("Email verified");
-        router.push("/forms");
-        return;
-      }
-
-      setMessage("That code did not complete verification. Try again.");
-    } catch (error) {
-      setMessage(clerkMessage(error, "That code is not correct"));
-    } finally {
-      setPending(false);
-    }
-  };
-
-  const resend = async () => {
-    if (!signUp) return;
-    try {
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+  const resend = useMutation({
+    mutationFn: authApi.resendVerification,
+    onSuccess: () => {
       restart();
       setCode("");
       toast.success("New code sent");
-    } catch (error) {
-      toast.error(clerkMessage(error, "Could not resend the code"));
+    },
+    onError: () => toast.error("Could not resend the code"),
+  });
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    clear();
+    const parsed = verifyEmailSchema.safeParse({ code });
+    if (!parsed.success) {
+      capture(new Error(parsed.error.issues[0]?.message));
+      return;
     }
+    verify.mutate(parsed.data);
   };
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-8">
       <AuthHeading
         title="Verify your email"
-        description={`Enter the 6-digit code we sent to ${address}`}
+        description={`Enter the 6-digit code we sent to ${user?.email ?? "your email"}`}
       />
 
       {message ? <AuthAlert message={message} /> : null}
 
       <OtpInput value={code} onChange={setCode} invalid={Boolean(message)} autoFocus />
 
-      <Button type="submit" size="lg" disabled={pending || code.length < 6}>
-        {pending ? "Verifying…" : "Verify email"}
+      <Button type="submit" size="lg" disabled={verify.isPending || code.length < 6}>
+        {verify.isPending ? "Verifying…" : "Verify email"}
       </Button>
 
       <p className="flex flex-wrap justify-center gap-1.5 text-body-s">
@@ -80,10 +76,11 @@ export function VerifyEmailForm() {
         {isComplete ? (
           <button
             type="button"
-            onClick={resend}
+            onClick={() => resend.mutate()}
+            disabled={resend.isPending}
             className="focus-ring rounded font-semibold text-content-link"
           >
-            Resend code
+            {resend.isPending ? "Sending…" : "Resend code"}
           </button>
         ) : (
           <span className="font-semibold text-content-placeholder">Resend in {label}</span>

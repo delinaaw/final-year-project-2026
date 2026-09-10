@@ -1,11 +1,10 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { AuthAlert } from "@/components/auth/auth-alert";
@@ -14,14 +13,13 @@ import { AuthHeading } from "@/components/auth/auth-heading";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { clerkMessage } from "@/features/auth/clerk-errors";
+import { authApi } from "@/features/auth/api";
 import { forgotPasswordSchema, type ForgotPasswordValues } from "@/features/auth/schemas";
+import { useAuthError } from "@/features/auth/use-auth-error";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
-  const { signIn, isLoaded } = useSignIn();
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const { message, capture, clear } = useAuthError();
 
   const {
     register,
@@ -32,23 +30,16 @@ export function ForgotPasswordForm() {
     defaultValues: { email: "" },
   });
 
-  const submit = handleSubmit(async (values) => {
-    if (!isLoaded || !signIn) return;
+  const mutation = useMutation({
+    mutationFn: authApi.forgotPassword,
+    onSuccess: (_, variables) =>
+      router.push(`/check-email?email=${encodeURIComponent(variables.email)}`),
+    onError: capture,
+  });
 
-    setMessage(null);
-    setPending(true);
-
-    try {
-      await signIn.create({
-        strategy: "reset_password_email_code",
-        identifier: values.email,
-      });
-      router.push(`/reset-password?email=${encodeURIComponent(values.email)}`);
-    } catch (error) {
-      setMessage(clerkMessage(error, "Could not send a reset code"));
-    } finally {
-      setPending(false);
-    }
+  const submit = handleSubmit((values) => {
+    clear();
+    mutation.mutate(values);
   });
 
   return (
@@ -63,7 +54,7 @@ export function ForgotPasswordForm() {
 
       <AuthHeading
         title="Forgot your password?"
-        description="Enter the email linked to your account and we'll send you a code to reset it."
+        description="Enter the email linked to your account and we'll send you a link to reset it."
       />
 
       {message ? <AuthAlert message={message} /> : null}
@@ -79,8 +70,8 @@ export function ForgotPasswordForm() {
         />
       </Field>
 
-      <Button type="submit" size="lg" disabled={pending || !isLoaded}>
-        {pending ? "Sending…" : "Send reset code"}
+      <Button type="submit" size="lg" disabled={mutation.isPending}>
+        {mutation.isPending ? "Sending…" : "Send reset link"}
       </Button>
 
       <AuthFooterLink prompt="Remembered your password?" href="/login" label="Log In" />

@@ -8,6 +8,8 @@ from voiceform.core.config import settings
 from voiceform.core.exceptions import UnauthorizedError
 from voiceform.core.security import decode_token
 from voiceform.modules.auth import service
+from voiceform.modules.auth.clerk import verify_session_token
+from voiceform.modules.auth.provisioning import link_social_account
 from voiceform.modules.auth.schemas import (
     AuthResponse,
     ForgotPasswordRequest,
@@ -15,6 +17,7 @@ from voiceform.modules.auth.schemas import (
     RefreshRequest,
     ResetPasswordRequest,
     SignUpRequest,
+    SocialExchangeRequest,
     TokenPair,
     UserPublic,
     VerifyEmailRequest,
@@ -48,6 +51,15 @@ async def sign_up(
 async def log_in(body: LoginRequest, session: SessionDep) -> AuthResponse:
     user = await service.authenticate(session, body.email, body.password)
     tokens = await service.issue_tokens(session, user, body.remember_me)
+    await session.commit()
+    return AuthResponse(user=UserPublic.model_validate(user), tokens=tokens)
+
+
+@router.post("/social/clerk", response_model=AuthResponse)
+async def exchange_social_session(body: SocialExchangeRequest, session: SessionDep) -> AuthResponse:
+    claims = verify_session_token(body.token)
+    user = await link_social_account(session, claims)
+    tokens = await service.issue_tokens(session, user)
     await session.commit()
     return AuthResponse(user=UserPublic.model_validate(user), tokens=tokens)
 

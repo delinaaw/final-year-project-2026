@@ -1,17 +1,10 @@
 "use client";
 
+import { useSignIn } from "@clerk/nextjs";
 import Image from "next/image";
 import { toast } from "sonner";
 
 import { CLERK_ENABLED } from "@/features/auth/config";
-
-type SignInLike = {
-  authenticateWithRedirect: (params: {
-    strategy: "oauth_google" | "oauth_apple";
-    redirectUrl: string;
-    redirectUrlComplete: string;
-  }) => Promise<unknown>;
-};
 
 const PROVIDERS = [
   {
@@ -30,13 +23,8 @@ const PROVIDERS = [
   },
 ];
 
-export function SocialButtons({
-  signIn,
-  isLoaded,
-}: {
-  signIn?: SignInLike | null;
-  isLoaded?: boolean;
-}) {
+export function SocialButtons() {
+  const { signIn, isLoaded } = useSignIn();
 
   const start = async (strategy: (typeof PROVIDERS)[number]["id"]) => {
     if (!CLERK_ENABLED || !isLoaded || !signIn) {
@@ -48,7 +36,7 @@ export function SocialButtons({
       await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/forms",
+        redirectUrlComplete: "/sso-callback",
       });
     } catch {
       toast.error("Could not start that sign-in");

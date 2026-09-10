@@ -1,10 +1,8 @@
 "use client";
 
-import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { AuthAlert } from "@/components/auth/auth-alert";
@@ -17,15 +15,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { clerkMessage } from "@/features/auth/clerk-errors";
+import { authApi } from "@/features/auth/api";
 import { signUpSchema, type SignUpValues } from "@/features/auth/schemas";
+import { useAuthError } from "@/features/auth/use-auth-error";
+import { useAuthSuccess } from "@/hooks/use-session";
 
 export function SignUpForm() {
-  const router = useRouter();
-  const { signUp, isLoaded } = useSignUp();
-  const { signIn: socialSignIn, isLoaded: socialLoaded } = useSignIn();
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const onSuccess = useAuthSuccess();
+  const { message, capture, clear } = useAuthError();
 
   const {
     register,
@@ -43,29 +40,20 @@ export function SignUpForm() {
     },
   });
 
-  const submit = handleSubmit(async (values) => {
-    if (!isLoaded || !signUp) return;
+  const mutation = useMutation({
+    mutationFn: authApi.signUp,
+    onSuccess: (response) => onSuccess(response, "/verify-email"),
+    onError: capture,
+  });
 
-    setMessage(null);
-    setPending(true);
-
-    const [firstName, ...rest] = values.full_name.trim().split(" ");
-
-    try {
-      await signUp.create({
-        emailAddress: values.email,
-        password: values.password,
-        firstName: firstName || values.full_name,
-        lastName: rest.join(" ") || undefined,
-      });
-
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      router.push("/verify-email");
-    } catch (error) {
-      setMessage(clerkMessage(error, "Could not create your account"));
-    } finally {
-      setPending(false);
-    }
+  const submit = handleSubmit((values) => {
+    clear();
+    mutation.mutate({
+      full_name: values.full_name,
+      email: values.email,
+      password: values.password,
+      accepted_terms: values.accepted_terms,
+    });
   });
 
   return (
@@ -153,14 +141,13 @@ export function SignUpForm() {
         </div>
       </div>
 
-      <Button type="submit" size="lg" disabled={pending || !isLoaded}>
-        {pending ? "Creating account…" : "Create Account"}
+      <Button type="submit" size="lg" disabled={mutation.isPending}>
+        {mutation.isPending ? "Creating account…" : "Create Account"}
       </Button>
 
       <AuthDivider />
-      <SocialButtons signIn={socialSignIn} isLoaded={socialLoaded} />
+      <SocialButtons />
       <AuthFooterLink prompt="Already have an account?" href="/login" label="Log In" />
-      <div id="clerk-captcha" />
     </form>
   );
 }

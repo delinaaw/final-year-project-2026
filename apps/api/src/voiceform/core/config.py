@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     verification_code_ttl_minutes: int = 15
     reset_token_ttl_minutes: int = 30
 
-    auth_provider: Literal["local", "clerk"] = "local"
     clerk_publishable_key: str = ""
     clerk_secret_key: SecretStr = SecretStr("")
     clerk_jwks_url: str = ""

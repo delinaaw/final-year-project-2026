@@ -3,14 +3,7 @@ import { env } from "@/lib/env";
 const ACCESS_KEY = "vf.access";
 const REFRESH_KEY = "vf.refresh";
 
-type TokenReader = () => Promise<string | null>;
-
-let externalTokenReader: TokenReader | null = null;
 let inFlight: Promise<string | null> | null = null;
-
-export function useExternalTokens(reader: TokenReader | null) {
-  externalTokenReader = reader;
-}
 
 export function storeSession(accessToken: string, refreshToken: string) {
   localStorage.setItem(ACCESS_KEY, accessToken);
@@ -23,13 +16,11 @@ export function clearSession() {
 }
 
 export async function getAccessToken() {
-  if (externalTokenReader) return externalTokenReader();
   if (typeof window === "undefined") return null;
   return localStorage.getItem(ACCESS_KEY);
 }
 
 export async function refreshSession() {
-  if (externalTokenReader) return externalTokenReader();
   if (inFlight) return inFlight;
 
   inFlight = (async () => {

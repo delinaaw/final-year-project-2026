@@ -211,31 +211,28 @@ ELEVENLABS_API_KEY=<key>
 
 ---
 
-## 7. Clerk — authentication
+## 7. Clerk — Google and Apple sign-in only
 
-VoiceForm uses Clerk for sign-in, behind the custom screens from the Figma. Clerk brokers
-Google and Apple, so Apple no longer needs a paid developer account.
+Email and password run on VoiceForm's own authentication. Clerk is used solely to broker Google
+and Apple: it hands back a session, the app exchanges that for a VoiceForm session, and Clerk is
+not involved again. One session type flows through the app.
 
 1. **dashboard.clerk.com** → create an application
 2. **API Keys** → copy both:
 
 ```
-AUTH_PROVIDER=clerk
 CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-3. **User & Authentication → Email, Phone, Username** — turn on **Email address** and set it as
-   an identifier, then turn on **Password**. Without these the email and password screens cannot
-   work: Clerk rejects the sign-up with *"email_address is not a valid parameter"*.
-4. **User & Authentication → Social Connections** — enable **Google** and **Apple**.
-5. **User & Authentication → Attack Protection** — bot protection is on by default and renders a
-   Cloudflare Turnstile widget. Leave it on for real use; it is the reason automated browsers
-   cannot complete sign-up.
+3. **User & Authentication → Social Connections** — enable **Google** and **Apple**.
+4. **User & Authentication → Email, Phone, Username** — enable **Email address**. Accounts are
+   linked by email, so without it a social sign-in has nothing to match on and the exchange is
+   refused with *"That account has no email address"*.
 
-Set `AUTH_PROVIDER=local` to fall back to the built-in email and password implementation, which
-is what the test suite uses.
+Leave password and the other identifiers off if you like: VoiceForm never asks Clerk to handle
+them.
 
 ## 8. Anthropic — optional, 2 minutes
 

@@ -33,6 +33,9 @@ export const authApi = {
 
   logOut: () => api.post<void>("/auth/logout"),
 
+  exchangeClerkSession: (token: string) =>
+    api.post<AuthResponse>("/auth/social/clerk", { token }, { auth: false }),
+
   forgotPassword: (body: { email: string }) =>
     api.post<{ status: string }>("/auth/forgot-password", body, { auth: false }),
 

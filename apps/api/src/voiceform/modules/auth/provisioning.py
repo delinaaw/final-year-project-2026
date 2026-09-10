@@ -4,24 +4,25 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from voiceform.core.exceptions import UnauthorizedError
 from voiceform.db.models import User
 from voiceform.modules.auth.clerk import fetch_profile, profile_email, profile_name
 
 
-async def user_for_claims(session: AsyncSession, claims: dict[str, Any]) -> User:
+async def link_social_account(session: AsyncSession, claims: dict[str, Any]) -> User:
     clerk_user_id = str(claims.get("sub", ""))
     if not clerk_user_id:
-        raise ValueError("token has no subject")
+        raise UnauthorizedError(message="That sign-in did not identify an account")
 
-    existing = await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
-    user = existing.scalar_one_or_none()
+    linked = await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
+    user = linked.scalar_one_or_none()
     if user is not None:
         return user
 
     profile = await fetch_profile(clerk_user_id)
     email = profile_email(profile, claims)
     if not email:
-        raise ValueError("no email on the Clerk account")
+        raise UnauthorizedError(message="That account has no email address")
 
     by_email = await session.execute(select(User).where(User.email == email.lower()))
     user = by_email.scalar_one_or_none()

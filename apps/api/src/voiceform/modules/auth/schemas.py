@@ -52,6 +52,10 @@ class VerifyEmailRequest(BaseModel):
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
+class SocialExchangeRequest(BaseModel):
+    token: str = Field(min_length=16)
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
