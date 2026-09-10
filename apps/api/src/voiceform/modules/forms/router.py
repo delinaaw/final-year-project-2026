@@ -1,8 +1,10 @@
-from fastapi import APIRouter, BackgroundTasks, Query, status
+from hashlib import sha256
+
+from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile, status
 
 from voiceform.api.dependencies import CurrentUser, OwnedForm, SessionDep
 from voiceform.core.config import settings
-from voiceform.core.exceptions import NotFoundError
+from voiceform.core.exceptions import NotFoundError, ValidationError
 from voiceform.db.enums import FormStatus
 from voiceform.modules.email.service import send_template
 from voiceform.modules.forms import service
@@ -20,6 +22,7 @@ from voiceform.modules.forms.schemas import (
     PublishFormRequest,
     UpdateFormRequest,
 )
+from voiceform.modules.storage.service import get_storage, header_image_key
 
 router = APIRouter(prefix="/forms", tags=["forms"])
 
@@ -141,6 +144,51 @@ async def update_theme(
         setattr(loaded.theme, field, value)
     await session.commit()
     return FormThemePublic.model_validate(loaded.theme)
+
+
+@router.post("/{form_id}/theme/header", response_model=FormThemePublic)
+async def upload_header_image(
+    form: OwnedForm,
+    session: SessionDep,
+    image: UploadFile = File(...),
+) -> FormThemePublic:
+    allowed = {"image/png", "image/jpeg", "image/webp"}
+    if image.content_type not in allowed:
+        raise ValidationError(message="Header images must be PNG, JPG or WebP")
+
+    payload = await image.read()
+    if len(payload) > settings.max_upload_bytes:
+        raise ValidationError(message="That image is larger than 10 MB")
+
+    loaded = await service.load_form(session, form.id)
+    if loaded is None:
+        raise NotFoundError()
+
+    digest = sha256(payload).hexdigest()[:16]
+    key = header_image_key(form.id, digest)
+    await get_storage().put(key, payload, image.content_type)
+
+    loaded.theme.header_image_key = key
+    await session.commit()
+    return FormThemePublic.model_validate(loaded.theme)
+
+
+@router.delete("/{form_id}/theme/header", response_model=FormThemePublic)
+async def remove_header_image(form: OwnedForm, session: SessionDep) -> FormThemePublic:
+    loaded = await service.load_form(session, form.id)
+    if loaded is None:
+        raise NotFoundError()
+    loaded.theme.header_image_key = None
+    await session.commit()
+    return FormThemePublic.model_validate(loaded.theme)
+
+
+@router.get("/{form_id}/theme/header", response_model=dict[str, str | None])
+async def header_image_url(form: OwnedForm, session: SessionDep) -> dict[str, str | None]:
+    loaded = await service.load_form(session, form.id)
+    key = loaded.theme.header_image_key if loaded else None
+    url = await get_storage().presign_get(key, 3600) if key else None
+    return {"url": url}
 
 
 @router.post("/{form_id}/invitations", status_code=status.HTTP_202_ACCEPTED)

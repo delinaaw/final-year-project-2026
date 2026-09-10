@@ -1,6 +1,6 @@
 import { api } from "@/lib/api-client";
 import type { FormStatus } from "@/features/forms/api";
-import type { FormSettings } from "@/features/builder/settings-api";
+import type { FormSettings, FormTheme } from "@/features/builder/settings-api";
 
 export type QuestionType =
   | "short_answer"
@@ -29,7 +29,7 @@ export interface Question {
   options: QuestionOption[];
 }
 
-export type { FormSettings } from "@/features/builder/settings-api";
+export type { FormSettings, FormTheme } from "@/features/builder/settings-api";
 
 export interface FormDetail {
   id: string;
@@ -39,6 +39,7 @@ export interface FormDetail {
   status: FormStatus;
   questions: Question[];
   settings: FormSettings;
+  theme: FormTheme;
   updated_at: string;
 }
 
