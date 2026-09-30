@@ -85,6 +85,8 @@ export interface VoiceAnswerResult {
 export const respondentApi = {
   getForm: (slug: string) => api.get<PublicForm>(`/public/forms/${slug}`, { auth: false }),
 
+  getPreviewForm: (formId: string) => api.get<PublicForm>(`/forms/${formId}/preview`),
+
   start: (slug: string, respondentKey: string) =>
     api.post<ResponseSession>(
       `/public/forms/${slug}/responses`,

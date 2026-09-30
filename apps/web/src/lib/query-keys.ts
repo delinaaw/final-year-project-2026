@@ -9,6 +9,7 @@ export const queryKeys = {
   },
   respondent: {
     form: (slug: string) => ["respondent", slug] as const,
+    preview: (formId: string) => ["respondent", "preview", formId] as const,
     session: (slug: string) => ["respondent", slug, "session"] as const,
   },
   voices: ["voices"] as const,

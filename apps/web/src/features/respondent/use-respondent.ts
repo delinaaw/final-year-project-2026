@@ -5,10 +5,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { getDeviceKey, respondentApi, type AnswerInput } from "@/features/respondent/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export function usePublicForm(slug: string) {
+export function usePublicForm(slug: string, previewFormId?: string) {
   return useQuery({
-    queryKey: queryKeys.respondent.form(slug),
-    queryFn: () => respondentApi.getForm(slug),
+    queryKey: previewFormId
+      ? queryKeys.respondent.preview(previewFormId)
+      : queryKeys.respondent.form(slug),
+    queryFn: () =>
+      previewFormId ? respondentApi.getPreviewForm(previewFormId) : respondentApi.getForm(slug),
     retry: false,
   });
 }

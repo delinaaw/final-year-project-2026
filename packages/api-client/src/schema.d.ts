@@ -229,6 +229,23 @@ export interface paths {
         patch: operations["update_form_v1_forms__form_id__patch"];
         trace?: never;
     };
+    "/v1/forms/{form_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Form */
+        get: operations["preview_form_v1_forms__form_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/forms/{form_id}/duplicate": {
         parameters: {
             query?: never;
@@ -1908,6 +1925,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_form_v1_forms__form_id__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicForm"];
                 };
             };
             /** @description Validation Error */

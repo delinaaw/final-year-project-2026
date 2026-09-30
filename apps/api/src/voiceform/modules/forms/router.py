@@ -23,6 +23,7 @@ from voiceform.modules.forms.schemas import (
     PublishFormRequest,
     UpdateFormRequest,
 )
+from voiceform.modules.responses.schemas import PublicForm
 from voiceform.modules.storage.service import get_storage, header_image_key
 from voiceform.workers.queue import enqueue
 
@@ -56,6 +57,14 @@ async def get_form(form: OwnedForm, session: SessionDep) -> FormDetail:
     if loaded is None:
         raise NotFoundError()
     return FormDetail.model_validate(loaded)
+
+
+@router.get("/{form_id}/preview", response_model=PublicForm)
+async def preview_form(form: OwnedForm, session: SessionDep) -> PublicForm:
+    loaded = await service.load_form(session, form.id)
+    if loaded is None:
+        raise NotFoundError()
+    return PublicForm.model_validate(loaded)
 
 
 @router.patch("/{form_id}", response_model=FormDetail)

@@ -44,3 +44,34 @@ async def test_a_form_is_private_to_its_owner(client: AsyncClient) -> None:
     response = await client.get(f"/forms/{form['id']}", headers=intruder)
 
     assert response.status_code == 403
+
+
+async def test_a_draft_can_be_previewed_by_its_owner(client: AsyncClient) -> None:
+    headers = await authenticate(client, "previewowner@example.com")
+
+    form = (await client.post("/forms", json={"title": "Draft"}, headers=headers)).json()
+    await client.post(
+        f"/forms/{form['id']}/questions",
+        json={"type": "short_answer", "prompt": "Your name?", "is_required": True},
+        headers=headers,
+    )
+
+    public = await client.get(f"/public/forms/{form['slug']}")
+    assert public.status_code == 404
+
+    preview = await client.get(f"/forms/{form['id']}/preview", headers=headers)
+    assert preview.status_code == 200
+
+    body = preview.json()
+    assert body["title"] == "Draft"
+    assert [question["prompt"] for question in body["questions"]] == ["Your name?"]
+
+
+async def test_a_draft_preview_is_private_to_its_owner(client: AsyncClient) -> None:
+    owner = await authenticate(client, "previewmine@example.com")
+    stranger = await authenticate(client, "previewtheirs@example.com")
+
+    form = (await client.post("/forms", json={"title": "Mine"}, headers=owner)).json()
+
+    assert (await client.get(f"/forms/{form['id']}/preview")).status_code == 401
+    assert (await client.get(f"/forms/{form['id']}/preview", headers=stranger)).status_code == 403

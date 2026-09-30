@@ -51,11 +51,14 @@ function toPayload(question: PublicQuestion, value: AnswerValue) {
   return { text_value: value.text.trim() };
 }
 
-export function RespondentFlow({ previewSlug }: { previewSlug?: string } = {}) {
+export function RespondentFlow({
+  previewSlug,
+  previewFormId,
+}: { previewSlug?: string; previewFormId?: string } = {}) {
   const routeSlug = useParams<{ slug: string }>().slug;
   const slug = previewSlug ?? routeSlug;
   const isPreview = Boolean(previewSlug);
-  const { data: form, isPending, error } = usePublicForm(slug);
+  const { data: form, isPending, error } = usePublicForm(slug, previewFormId);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [index, setIndex] = useState(0);

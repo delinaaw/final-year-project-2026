@@ -32,7 +32,7 @@ export function PreviewPage() {
   return (
     <div className="flex flex-1 flex-col">
       <PreviewBanner />
-      <RespondentFlow previewSlug={form.slug} />
+      <RespondentFlow previewSlug={form.slug} previewFormId={formId} />
     </div>
   );
 }
