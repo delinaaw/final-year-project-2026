@@ -3,7 +3,7 @@ node_modules/
 .next/
 out/
 dist/
-build/
+/build/
 .turbo/
 
 __pycache__/
