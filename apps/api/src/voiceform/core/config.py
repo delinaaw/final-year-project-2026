@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 7
     refresh_token_ttl_days_remembered: int = 30
-    verification_code_ttl_minutes: int = 15
     reset_token_ttl_minutes: int = 30
 
     clerk_publishable_key: str = ""

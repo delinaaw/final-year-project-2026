@@ -35,14 +35,7 @@ async def get_current_user(request: Request, session: SessionDep) -> User:
     return user
 
 
-async def get_verified_user(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if not user.is_verified:
-        raise ForbiddenError(message="Verify your email to continue", code="email_unverified")
-    return user
-
-
 CurrentUser = Annotated[User, Depends(get_current_user)]
-VerifiedUser = Annotated[User, Depends(get_verified_user)]
 
 
 async def get_owned_form(form_id: UUID, session: SessionDep, user: CurrentUser) -> Form:

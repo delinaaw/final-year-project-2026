@@ -42,9 +42,5 @@ export const authApi = {
   resetPassword: (body: { token: string; password: string }) =>
     api.post<{ status: string }>("/auth/reset-password", body, { auth: false }),
 
-  verifyEmail: (body: { code: string }) => api.post<AuthUser>("/auth/verify-email", body),
-
-  resendVerification: () => api.post<{ status: string }>("/auth/verify-email/resend"),
-
   me: () => api.get<AuthUser>("/users/me"),
 };

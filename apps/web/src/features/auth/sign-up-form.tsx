@@ -42,7 +42,7 @@ export function SignUpForm() {
 
   const mutation = useMutation({
     mutationFn: authApi.signUp,
-    onSuccess: (response) => onSuccess(response, "/verify-email"),
+    onSuccess: (response) => onSuccess(response, "/forms"),
     onError: capture,
   });
 

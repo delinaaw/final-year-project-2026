@@ -8,7 +8,6 @@ from voiceform.core.config import settings
 from voiceform.core.exceptions import ConflictError, UnauthorizedError, ValidationError
 from voiceform.core.security import (
     create_token,
-    generate_numeric_code,
     generate_url_token,
     hash_password,
     hash_token,
@@ -18,9 +17,7 @@ from voiceform.core.security import (
 from voiceform.db.models import LoginAttempt, RefreshToken, User, VerificationCode
 from voiceform.modules.auth.schemas import TokenPair
 
-VERIFY_PURPOSE = "verify_email"
 RESET_PURPOSE = "reset_password"
-MAX_CODE_ATTEMPTS = 5
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_WINDOW = timedelta(minutes=15)
 
@@ -38,6 +35,7 @@ async def register(session: AsyncSession, full_name: str, email: str, password: 
         email=email.lower(),
         full_name=full_name.strip(),
         password_hash=hash_password(password),
+        email_verified_at=datetime.now(UTC),
     )
     session.add(user)
     await session.flush()
@@ -157,46 +155,6 @@ async def revoke_all_tokens(session: AsyncSession, user_id: UUID) -> None:
     )
     for token in result.scalars():
         token.revoked_at = datetime.now(UTC)
-
-
-async def create_verification_code(session: AsyncSession, user: User) -> str:
-    code = generate_numeric_code()
-    session.add(
-        VerificationCode(
-            user_id=user.id,
-            code_hash=hash_token(code),
-            purpose=VERIFY_PURPOSE,
-            expires_at=datetime.now(UTC)
-            + timedelta(minutes=settings.verification_code_ttl_minutes),
-        )
-    )
-    await session.flush()
-    return code
-
-
-async def consume_verification_code(session: AsyncSession, user: User, code: str) -> None:
-    result = await session.execute(
-        select(VerificationCode)
-        .where(
-            VerificationCode.user_id == user.id,
-            VerificationCode.purpose == VERIFY_PURPOSE,
-            VerificationCode.consumed_at.is_(None),
-            VerificationCode.expires_at > datetime.now(UTC),
-        )
-        .order_by(VerificationCode.created_at.desc())
-    )
-    record = result.scalars().first()
-    if record is None:
-        raise ValidationError(message="That code has expired. Request a new one")
-    if record.attempts >= MAX_CODE_ATTEMPTS:
-        raise ValidationError(message="Too many attempts. Request a new code")
-
-    record.attempts += 1
-    if not verify_token_hash(code, record.code_hash):
-        raise ValidationError(message="That code is not correct")
-
-    record.consumed_at = datetime.now(UTC)
-    user.email_verified_at = datetime.now(UTC)
 
 
 async def create_reset_token(session: AsyncSession, user: User) -> str:

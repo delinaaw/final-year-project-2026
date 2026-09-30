@@ -21,7 +21,6 @@ from voiceform.modules.auth.schemas import (
     SocialExchangeRequest,
     TokenPair,
     UserPublic,
-    VerifyEmailRequest,
 )
 from voiceform.modules.email.service import send_template
 
@@ -30,22 +29,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/hour")
-async def sign_up(
-    request: Request, body: SignUpRequest, session: SessionDep, background: BackgroundTasks
-) -> AuthResponse:
+async def sign_up(request: Request, body: SignUpRequest, session: SessionDep) -> AuthResponse:
     user = await service.register(session, body.full_name, body.email, body.password)
-    code = await service.create_verification_code(session, user)
     tokens = await service.issue_tokens(session, user)
-
     await session.commit()
-
-    background.add_task(
-        send_template,
-        to=user.email,
-        subject="Verify your email",
-        template="verify_email",
-        context={"code": code, "ttl_minutes": settings.verification_code_ttl_minutes},
-    )
     return AuthResponse(user=UserPublic.model_validate(user), tokens=tokens)
 
 
@@ -87,33 +74,6 @@ async def refresh(body: RefreshRequest, session: SessionDep) -> TokenPair:
 async def log_out(user: CurrentUser, session: SessionDep) -> None:
     await service.revoke_all_tokens(session, user.id)
     await session.commit()
-
-
-@router.post("/verify-email", response_model=UserPublic)
-async def verify_email(
-    body: VerifyEmailRequest, user: CurrentUser, session: SessionDep
-) -> UserPublic:
-    await service.consume_verification_code(session, user, body.code)
-    await session.commit()
-    return UserPublic.model_validate(user)
-
-
-@router.post("/verify-email/resend", status_code=status.HTTP_202_ACCEPTED)
-@limiter.limit("3/hour")
-async def resend_verification(
-    request: Request, user: CurrentUser, session: SessionDep, background: BackgroundTasks
-) -> dict[str, str]:
-    code = await service.create_verification_code(session, user)
-    await session.commit()
-
-    background.add_task(
-        send_template,
-        to=user.email,
-        subject="Verify your email",
-        template="verify_email",
-        context={"code": code, "ttl_minutes": settings.verification_code_ttl_minutes},
-    )
-    return {"status": "sent"}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
