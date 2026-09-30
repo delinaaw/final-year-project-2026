@@ -76,3 +76,26 @@ async def test_a_successful_login_is_recorded(client: AsyncClient) -> None:
         json={"email": email, "password": CREDENTIALS["password"], "remember_me": False},
     )
     assert ok.status_code == 200
+
+
+async def test_signup_needs_no_verification_step(client: AsyncClient) -> None:
+    email = "straightin@example.com"
+    signup = await client.post("/auth/signup", json={**CREDENTIALS, "email": email})
+    assert signup.status_code == 201
+
+    body = signup.json()
+    assert body["user"]["email_verified_at"] is not None
+
+    token = body["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/users/me", headers=headers)
+    assert me.status_code == 200
+
+    form = await client.post("/forms", json={"title": "Straight in"}, headers=headers)
+    assert form.status_code == 201
+
+
+async def test_the_verification_endpoints_are_gone(client: AsyncClient) -> None:
+    assert (await client.post("/auth/verify-email", json={"code": "123456"})).status_code == 404
+    assert (await client.post("/auth/verify-email/resend")).status_code == 404
