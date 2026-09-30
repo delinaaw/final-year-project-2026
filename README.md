@@ -135,7 +135,7 @@ Check they came up:
 docker compose ps
 ```
 
-All three should say `running`. Mailpit's inbox is at **http://localhost:8025** — every verification and password-reset email will land there.
+All three should say `running`. Mailpit's inbox is at **http://localhost:8025** — password-reset and form-invitation emails land there.
 
 ---
 
@@ -292,12 +292,11 @@ Open **http://localhost:3000** and you're running.
 
 A five-minute path through the whole system:
 
-1. Go to http://localhost:3000 and **create an account**.
-2. Open **http://localhost:8025** (Mailpit). Your verification email is there. Copy the code and verify.
-3. **Create a form.** Add a short-answer question and a multiple-choice question.
-4. Hit **Publish**, then open the public link (or scan the QR code with your phone).
-5. Answer it. Allow microphone access when the browser asks, and speak your answer.
-6. Back in the dashboard, open **Responses** — yours is there, with the recording attached.
+1. Go to http://localhost:3000 and **create an account**. Signing up logs you straight in — there is no email verification step.
+2. **Create a form.** Add a short-answer question and a multiple-choice question.
+3. Hit **Publish**, then open the public link (or scan the QR code with your phone).
+4. Answer it. Allow microphone access when the browser asks, and speak your answer.
+5. Back in the dashboard, open **Responses** — yours is there, with the recording attached.
 
 If step 5 stays silent, `pnpm api:check` will tell you which of Deepgram, ElevenLabs or R2 is not configured.
 
@@ -420,8 +419,10 @@ You have a local Postgres on port 5432 shadowing the container. The container is
 **`AUTH extension not supported` when sending email**
 You are pointing Gmail credentials at Mailpit. For local development set `SMTP_HOST=localhost` and `SMTP_PORT=1025` and leave the username and password blank.
 
-**No verification email arrives**
-Check Mailpit at http://localhost:8025 rather than your real inbox. In development, mail never leaves your machine.
+**No email arrives (password reset, form invitation)**
+Check Mailpit at http://localhost:8025 rather than your real inbox. In development, mail never leaves your machine. If you are not running Docker, set `EMAIL_PROVIDER=console` in `.env` and the email is printed in the `pnpm api:dev` terminal instead.
+
+Signing up sends no email at all — accounts are active immediately.
 
 **ElevenLabs returns 401 with a key you just created**
 It is the key's scopes, not the key. Regenerating produces the same error. Open the key in the ElevenLabs dashboard and check its permissions.
