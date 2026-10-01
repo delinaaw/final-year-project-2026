@@ -43,28 +43,32 @@ async def test_weak_password_is_rejected(client: AsyncClient) -> None:
     assert response.status_code == 422
 
 
-async def test_failed_logins_count_down_and_then_lock_out(client: AsyncClient) -> None:
-    email = "lockout@example.com"
+async def test_repeated_wrong_passwords_never_lock_the_account(client: AsyncClient) -> None:
+    email = "neverlocked@example.com"
     await client.post("/auth/signup", json={**CREDENTIALS, "email": email})
 
-    messages = []
-    for _ in range(5):
+    for _ in range(12):
         attempt = await client.post(
             "/auth/login", json={"email": email, "password": "Wr0ng!Pass", "remember_me": False}
         )
         assert attempt.status_code == 401
-        messages.append(attempt.json()["detail"]["message"])
+        assert attempt.json()["detail"]["message"] == (
+            "That email and password combination is incorrect"
+        )
 
-    assert "4 attempts remaining" in messages[0]
-    assert "1 attempt remaining" in messages[3]
-    assert "Too many failed attempts" in messages[4]
-
-    locked = await client.post(
+    correct = await client.post(
         "/auth/login",
         json={"email": email, "password": CREDENTIALS["password"], "remember_me": False},
     )
-    assert locked.status_code == 401
-    assert "Too many failed attempts" in locked.json()["detail"]["message"]
+    assert correct.status_code == 200
+
+
+async def test_signup_is_not_rate_limited(client: AsyncClient) -> None:
+    for index in range(12):
+        created = await client.post(
+            "/auth/signup", json={**CREDENTIALS, "email": f"bulk{index}@example.com"}
+        )
+        assert created.status_code == 201
 
 
 async def test_a_successful_login_is_recorded(client: AsyncClient) -> None:

@@ -66,6 +66,8 @@ class Settings(BaseSettings):
 
     sentry_dsn: str = ""
 
+    rate_limits_enabled: bool | None = None
+
     max_audio_bytes: int = 25 * 1024 * 1024
     max_upload_bytes: int = 10 * 1024 * 1024
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -90,6 +92,12 @@ class Settings(BaseSettings):
     @property
     def is_testing(self) -> bool:
         return self.app_env == "test"
+
+    @property
+    def rate_limiting_on(self) -> bool:
+        if self.rate_limits_enabled is not None:
+            return self.rate_limits_enabled
+        return self.app_env in ("staging", "production")
 
 
 @lru_cache

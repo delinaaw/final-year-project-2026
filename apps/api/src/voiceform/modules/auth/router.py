@@ -28,8 +28,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/hour")
-async def sign_up(request: Request, body: SignUpRequest, session: SessionDep) -> AuthResponse:
+async def sign_up(body: SignUpRequest, session: SessionDep) -> AuthResponse:
     user = await service.register(session, body.full_name, body.email, body.password)
     tokens = await service.issue_tokens(session, user)
     await session.commit()
@@ -37,7 +36,6 @@ async def sign_up(request: Request, body: SignUpRequest, session: SessionDep) ->
 
 
 @router.post("/login", response_model=AuthResponse)
-@limiter.limit("10/minute")
 async def log_in(request: Request, body: LoginRequest, session: SessionDep) -> AuthResponse:
     user = await service.authenticate(
         session, body.email, body.password, request.client.host if request.client else None
@@ -48,10 +46,7 @@ async def log_in(request: Request, body: LoginRequest, session: SessionDep) -> A
 
 
 @router.post("/social/clerk", response_model=AuthResponse)
-@limiter.limit("20/minute")
-async def exchange_social_session(
-    request: Request, body: SocialExchangeRequest, session: SessionDep
-) -> AuthResponse:
+async def exchange_social_session(body: SocialExchangeRequest, session: SessionDep) -> AuthResponse:
     claims = verify_session_token(body.token)
     user = await link_social_account(session, claims)
     tokens = await service.issue_tokens(session, user)
@@ -77,7 +72,7 @@ async def log_out(user: CurrentUser, session: SessionDep) -> None:
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
-@limiter.limit("5/hour")
+@limiter.limit("20/hour")
 async def forgot_password(
     request: Request, body: ForgotPasswordRequest, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
@@ -99,7 +94,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
-@limiter.limit("5/hour")
+@limiter.limit("20/hour")
 async def reset_password(
     request: Request, body: ResetPasswordRequest, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str]:
